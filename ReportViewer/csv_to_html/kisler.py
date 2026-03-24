@@ -508,13 +508,45 @@ def build_chart_html(series, eo_boxes, eo_results, x_unit="mm", y_unit="kN"):
 from .kisler_styles import CSS
 
 JS_TOGGLE = """
-document.querySelectorAll('.card-header').forEach(function(hdr) {
-    hdr.addEventListener('click', function() {
-        var body = hdr.nextElementSibling;
-        body.classList.toggle('hidden');
-        hdr.classList.toggle('collapsed');
+(function() {
+    var PREFIX = 'kistler_card_';
+
+    function cardTitle(hdr) {
+        var s = hdr.querySelector('span');
+        return s ? s.textContent : hdr.textContent;
+    }
+
+    function saveState(title, collapsed) {
+        try { localStorage.setItem(PREFIX + title, collapsed ? '1' : '0'); } catch(e) {}
+    }
+
+    function restoreStates() {
+        document.querySelectorAll('.card-header').forEach(function(hdr) {
+            var saved;
+            try { saved = localStorage.getItem(PREFIX + cardTitle(hdr)); } catch(e) { return; }
+            if (saved === null) return;
+            var body = hdr.nextElementSibling;
+            if (saved === '1') {
+                hdr.classList.add('collapsed');
+                body.classList.add('hidden');
+            } else {
+                hdr.classList.remove('collapsed');
+                body.classList.remove('hidden');
+            }
+        });
+    }
+
+    document.querySelectorAll('.card-header').forEach(function(hdr) {
+        hdr.addEventListener('click', function() {
+            var body = hdr.nextElementSibling;
+            body.classList.toggle('hidden');
+            hdr.classList.toggle('collapsed');
+            saveState(cardTitle(hdr), hdr.classList.contains('collapsed'));
+        });
     });
-});
+
+    restoreStates();
+})();
 """
 
 
@@ -877,8 +909,6 @@ def build_html(filepath, sections):
             f'<div class="eo-card {cls}"><h3>{escape(nm)} — {result_badge(res)}</h3>{items_html}</div>'
         )
     eo_grid_html = '<div class="eo-grid">' + "".join(eo_grid_parts) + "</div>" if eo_grid_parts else "<p><em>No EO data.</em></p>"
-    body_parts.append(card("🎯 Evaluation Objects — Results", eo_grid_html))
-
     # ---- Measuring Curve GRAPH card ----
     x_unit = "mm"
     y_unit = "kN"
@@ -890,6 +920,8 @@ def build_html(filepath, sections):
     chart_html = build_chart_html(mc_series, eo_boxes, eo_results, x_unit=x_unit, y_unit=y_unit)
     pts_info = f'<p style="font-size:11px;color:#666;margin-bottom:8px">Number of data points: <strong>{len(mc_series)}</strong></p>'
     body_parts.append(card("📈 Measuring Curve", pts_info + chart_html))
+
+    body_parts.append(card("🎯 Evaluation Objects — Results", eo_grid_html))
 
     # ---- Process values - curve related ----
     pv_rows = sections_dict.get("Process values - curve related", [])
