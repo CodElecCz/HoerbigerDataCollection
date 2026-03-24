@@ -1,31 +1,121 @@
 {
-  "kistler_folder": "D:\\Work\\Development\\Qt\\HoerbigerDataCollection\\Stations\\KISLER",
-  "converter_name": "KISTLER",
+  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/HMI-PRESS/Reports",
+  "converter_name": "HMI-PRESS",
   "converter_script": "built-in:csv_to_html.kisler.convert_file",
   "ui_state": {
     "window": {
-      "width": 1920,
+      "width": 1707,
       "height": 1001
     },
     "splitter_sizes": [
-      643,
-      1230
+      481,
+      1179
     ],
     "column_widths": {
-      "0": 133,
-      "1": 54,
-      "2": 62,
-      "3": 85,
-      "4": 275,
+      "0": 137,
+      "1": 66,
+      "2": 0,
+      "3": 83,
+      "4": 173,
       "5": 0
+    },
+    "column_widths_by_profile": {
+      "1": {
+        "0": 132,
+        "1": 64,
+        "2": 120,
+        "3": 74,
+        "4": 69,
+        "5": 0
+      },
+      "0": {
+        "0": 137,
+        "1": 66,
+        "2": 0,
+        "3": 83,
+        "4": 173,
+        "5": 0
+      }
     },
     "column_visibility": {
       "0": true,
       "1": true,
-      "2": true,
+      "2": false,
       "3": true,
       "4": true,
       "5": false
+    },
+    "column_visibility_by_profile": {
+      "1": {
+        "0": true,
+        "1": true,
+        "2": true,
+        "3": true,
+        "4": true,
+        "5": false
+      },
+      "0": {
+        "0": true,
+        "1": true,
+        "2": false,
+        "3": true,
+        "4": true,
+        "5": false
+      }
+    },
+    "column_order": [
+      0,
+      1,
+      3,
+      4,
+      2,
+      5
+    ],
+    "column_order_by_profile": {
+      "1": [
+        0,
+        1,
+        3,
+        4,
+        2,
+        5
+      ],
+      "0": [
+        0,
+        1,
+        3,
+        4,
+        2,
+        5
+      ]
     }
-  }
+  },
+  "profiles": [
+    {
+      "name": "PRESS",
+      "folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/HMI-PRESS/Reports",
+      "converter_name": "HMI-PRESS"
+    },
+    {
+      "name": "PRESS-KISTLER",
+      "folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/KISLER",
+      "converter_name": "KISTLER"
+    },
+    {
+      "name": "Section 3",
+      "folder": "",
+      "converter_name": "KISTLER"
+    },
+    {
+      "name": "Section 4",
+      "folder": "",
+      "converter_name": "KISTLER"
+    },
+    {
+      "name": "Section 5",
+      "folder": "",
+      "converter_name": "KISTLER"
+    }
+  ],
+  "active_profile_index": 0
 }

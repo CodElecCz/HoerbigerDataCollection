@@ -138,6 +138,21 @@ class KistlerReportViewer(QMainWindow):
         self.settings_path = self.base_dir / "ReportViewer.Settings.json"
         self.saved_ui_state = self._load_saved_ui_state()
         self.ui_state_applied = False
+        self._profile_column_widths: dict = {
+            int(k): v
+            for k, v in self.saved_ui_state.get("column_widths_by_profile", {}).items()
+            if isinstance(v, dict)
+        }
+        self._profile_column_visibility: dict = {
+            int(k): v
+            for k, v in self.saved_ui_state.get("column_visibility_by_profile", {}).items()
+            if isinstance(v, dict)
+        }
+        self._profile_column_order: dict = {
+            int(k): v
+            for k, v in self.saved_ui_state.get("column_order_by_profile", {}).items()
+            if isinstance(v, list)
+        }
         self.profiles = self._load_saved_profiles()
         self.active_profile_index = self._load_saved_active_profile_index()
         active_profile = self.profiles[self.active_profile_index]
@@ -241,6 +256,7 @@ class KistlerReportViewer(QMainWindow):
         header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         header.setResizeContentsPrecision(-1)
         header.setStretchLastSection(False)
+        header.setSectionsMovable(True)
         header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         header.customContextMenuRequested.connect(self.on_header_context_menu)
         self.csv_tree.itemSelectionChanged.connect(self.preview_selected)
@@ -406,9 +422,16 @@ class KistlerReportViewer(QMainWindow):
     def _refresh_viewer_profile_combo(self) -> None:
         self.viewer_profile_combo.blockSignals(True)
         self.viewer_profile_combo.clear()
-        for profile in self.profiles:
-            self.viewer_profile_combo.addItem(profile["name"])
-        self.viewer_profile_combo.setCurrentIndex(self.active_profile_index)
+        self._combo_to_profile: list = []
+        for i, profile in enumerate(self.profiles):
+            if profile["folder"].strip():
+                self.viewer_profile_combo.addItem(profile["name"])
+                self._combo_to_profile.append(i)
+        try:
+            combo_idx = self._combo_to_profile.index(self.active_profile_index)
+        except ValueError:
+            combo_idx = 0
+        self.viewer_profile_combo.setCurrentIndex(combo_idx)
         self.viewer_profile_combo.blockSignals(False)
 
     def _apply_active_profile(self, refresh: bool) -> None:
@@ -423,13 +446,58 @@ class KistlerReportViewer(QMainWindow):
         if refresh:
             self.refresh_csv_list()
 
-    def on_viewer_profile_changed(self, index: int) -> None:
-        if index < 0 or index >= len(self.profiles):
+    def _get_column_widths(self) -> dict:
+        return {
+            str(c): self.csv_tree.columnWidth(c)
+            for c in range(self.csv_tree.columnCount())
+        }
+
+    def _apply_column_widths(self, widths: dict) -> None:
+        for c in range(self.csv_tree.columnCount()):
+            w = widths.get(str(c))
+            if isinstance(w, int) and w > 0:
+                self.csv_tree.setColumnWidth(c, w)
+
+    def _get_column_visibility(self) -> dict:
+        return {
+            str(c): not self.csv_tree.isColumnHidden(c)
+            for c in range(self.csv_tree.columnCount())
+        }
+
+    def _apply_column_visibility(self, visibility: dict) -> None:
+        for c in range(self.csv_tree.columnCount()):
+            is_visible = visibility.get(str(c), True)
+            self.csv_tree.setColumnHidden(c, not is_visible)
+
+    def _get_column_order(self) -> list:
+        header = self.csv_tree.header()
+        return [header.logicalIndex(v) for v in range(header.count())]
+
+    def _apply_column_order(self, order: list) -> None:
+        if not order:
             return
-        self.active_profile_index = index
+        header = self.csv_tree.header()
+        count = header.count()
+        for visual, logical in enumerate(order):
+            if logical < count:
+                current_visual = header.visualIndex(logical)
+                if current_visual != visual:
+                    header.moveSection(current_visual, visual)
+
+    def on_viewer_profile_changed(self, index: int) -> None:
+        if index < 0 or index >= len(getattr(self, "_combo_to_profile", [])):
+            return
+        self._profile_column_widths[self.active_profile_index] = self._get_column_widths()
+        self._profile_column_visibility[self.active_profile_index] = self._get_column_visibility()
+        self._profile_column_order[self.active_profile_index] = self._get_column_order()
+        profile_index = self._combo_to_profile[index]
+        self.active_profile_index = profile_index
         self._apply_active_profile(refresh=True)
+        self._apply_column_order(self._profile_column_order.get(profile_index, []))
+        self._apply_column_widths(self._profile_column_widths.get(profile_index, {}))
+        self._apply_column_visibility(self._profile_column_visibility.get(profile_index, {}))
         self._save_settings()
-        self.statusBar().showMessage(f"Switched to {self.profiles[index]['name']}", 3000)
+        self.statusBar().showMessage(f"Switched to {self.profiles[profile_index]['name']}", 3000)
 
     def on_browse(self) -> None:
         start_dir = self.dir_edit.text().strip() or str(self.base_dir)
@@ -652,11 +720,24 @@ class KistlerReportViewer(QMainWindow):
                 if isinstance(saved_width, int) and saved_width > 0:
                     self.csv_tree.setColumnWidth(column, saved_width)
 
+        # Per-profile widths override the global defaults
+        self._apply_column_widths(self._profile_column_widths.get(self.active_profile_index, {}))
+
         column_visibility = self.saved_ui_state.get("column_visibility", {})
         if isinstance(column_visibility, dict):
             for column in range(self.csv_tree.columnCount()):
                 is_visible = column_visibility.get(str(column), True)
                 self.csv_tree.setColumnHidden(column, not is_visible)
+
+        # Per-profile visibility overrides the global defaults
+        self._apply_column_visibility(self._profile_column_visibility.get(self.active_profile_index, {}))
+
+        column_order = self.saved_ui_state.get("column_order", [])
+        if isinstance(column_order, list):
+            self._apply_column_order(column_order)
+
+        # Per-profile order overrides the global defaults
+        self._apply_column_order(self._profile_column_order.get(self.active_profile_index, []))
 
         self.ui_state_applied = True
 
@@ -795,19 +876,26 @@ class KistlerReportViewer(QMainWindow):
 
     def _save_ui_state(self) -> None:
         payload = self._load_settings_payload()
+        self._profile_column_widths[self.active_profile_index] = self._get_column_widths()
+        self._profile_column_visibility[self.active_profile_index] = self._get_column_visibility()
+        self._profile_column_order[self.active_profile_index] = self._get_column_order()
         payload["ui_state"] = {
             "window": {
                 "width": self.width(),
                 "height": self.height(),
             },
             "splitter_sizes": self.main_splitter.sizes(),
-            "column_widths": {
-                str(column): self.csv_tree.columnWidth(column)
-                for column in range(self.csv_tree.columnCount())
+            "column_widths": self._get_column_widths(),
+            "column_widths_by_profile": {
+                str(k): v for k, v in self._profile_column_widths.items()
             },
-            "column_visibility": {
-                str(column): not self.csv_tree.isColumnHidden(column)
-                for column in range(self.csv_tree.columnCount())
+            "column_visibility": self._get_column_visibility(),
+            "column_visibility_by_profile": {
+                str(k): v for k, v in self._profile_column_visibility.items()
+            },
+            "column_order": self._get_column_order(),
+            "column_order_by_profile": {
+                str(k): v for k, v in self._profile_column_order.items()
             },
         }
         try:
