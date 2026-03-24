@@ -34,6 +34,7 @@ def load_qt_bindings():
                 "QUrl": qt_core.QUrl,
                 "QApplication": qt_widgets.QApplication,
                 "QFileDialog": qt_widgets.QFileDialog,
+                "QHeaderView": qt_widgets.QHeaderView,
                 "QHBoxLayout": qt_widgets.QHBoxLayout,
                 "QLabel": qt_widgets.QLabel,
                 "QLineEdit": qt_widgets.QLineEdit,
@@ -62,6 +63,7 @@ Qt = QT["Qt"]
 QUrl = QT["QUrl"]
 QApplication = QT["QApplication"]
 QFileDialog = QT["QFileDialog"]
+QHeaderView = QT["QHeaderView"]
 QHBoxLayout = QT["QHBoxLayout"]
 QLabel = QT["QLabel"]
 QLineEdit = QT["QLineEdit"]
@@ -99,6 +101,13 @@ def load_converter(converter_path: Path) -> Callable:
 class KistlerReportViewer(QMainWindow):
     ROLE_PATH = Qt.ItemDataRole.UserRole
     ROLE_MTIME = Qt.ItemDataRole.UserRole + 1
+    COL_TIME = 0
+    COL_STATION = 1
+    COL_PROGRAM = 2
+    COL_DATE = 3
+    COL_SERIAL = 4
+    COL_RESULT = 5
+    COL_FILENAME = 6
 
     def __init__(self) -> None:
         super().__init__()
@@ -146,13 +155,10 @@ class KistlerReportViewer(QMainWindow):
         # Path is managed in Settings; keep this internal field for refresh logic.
         self.dir_edit = QLineEdit()
 
-        controls = QHBoxLayout()
-        controls.addStretch(1)
-        refresh_btn = QPushButton("Refresh")
-        refresh_btn.clicked.connect(self.refresh_csv_list)
-        controls.addWidget(refresh_btn)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
 
-        layout.addLayout(controls)
+        left_panel = QWidget(self)
+        left_layout = QVBoxLayout(left_panel)
 
         filter_row = QHBoxLayout()
         filter_row.addWidget(QLabel("Filter:"))
@@ -160,14 +166,35 @@ class KistlerReportViewer(QMainWindow):
         self.filter_edit.setPlaceholderText("Type to filter by file name or folder")
         self.filter_edit.textChanged.connect(self.apply_filter)
         filter_row.addWidget(self.filter_edit, 1)
-        layout.addLayout(filter_row)
-
-        splitter = QSplitter(Qt.Orientation.Horizontal)
+        left_layout.addLayout(filter_row)
 
         self.csv_tree = QTreeWidget()
-        self.csv_tree.setHeaderHidden(True)
+        self.csv_tree.setColumnCount(7)
+        self.csv_tree.setHeaderLabels(
+            [
+                "Time",
+                "Station",
+                "Program",
+                "Date",
+                "Serial Number",
+                "Result",
+                "File name",
+            ]
+        )
+        header = self.csv_tree.header()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        header.setStretchLastSection(True)
         self.csv_tree.itemSelectionChanged.connect(self.preview_selected)
-        splitter.addWidget(self.csv_tree)
+        left_layout.addWidget(self.csv_tree, 1)
+
+        refresh_row = QHBoxLayout()
+        refresh_row.addStretch(1)
+        refresh_btn = QPushButton("Refresh")
+        refresh_btn.clicked.connect(self.refresh_csv_list)
+        refresh_row.addWidget(refresh_btn)
+        left_layout.addLayout(refresh_row)
+
+        splitter.addWidget(left_panel)
 
         self.web_view = QWebEngineView()
         splitter.addWidget(self.web_view)
@@ -316,6 +343,7 @@ class KistlerReportViewer(QMainWindow):
             return
 
         self._populate_tree(root, files)
+        self._resize_tree_columns()
 
         self.apply_filter(self.filter_edit.text())
         self.statusBar().showMessage(f"Found {len(files)} CSV files in {root}", 5000)
@@ -344,13 +372,46 @@ class KistlerReportViewer(QMainWindow):
                         node.setData(0, self.ROLE_MTIME, mtime)
                 parent = node
 
-            file_item = QTreeWidgetItem([rel.parts[-1]])
+            file_item = QTreeWidgetItem([""])
+            fields = self._parse_csv_name_fields(csv_file)
+            file_item.setText(self.COL_TIME, fields["time"])
+            file_item.setText(self.COL_STATION, fields["station"])
+            file_item.setText(self.COL_PROGRAM, fields["program"])
+            file_item.setText(self.COL_DATE, fields["date"])
+            file_item.setText(self.COL_SERIAL, fields["serial"])
+            file_item.setText(self.COL_RESULT, fields["result"])
+            file_item.setText(self.COL_FILENAME, rel.parts[-1])
             file_item.setData(0, self.ROLE_PATH, str(csv_file))
             file_item.setData(0, self.ROLE_MTIME, mtime)
             file_item.setToolTip(0, str(csv_file))
             parent.addChild(file_item)
 
         self._sort_tree_by_mtime(self.csv_tree.invisibleRootItem())
+
+    def _parse_csv_name_fields(self, csv_path: Path) -> dict[str, str]:
+        stem = csv_path.stem
+        parts = stem.split("_")
+        if len(parts) < 7:
+            return {
+                "part": "",
+                "station": "",
+                "program": "",
+                "date": "",
+                "time": "",
+                "serial": "",
+                "result": "",
+            }
+
+        station_parts = parts[1:-5]
+        return {
+            "part": parts[0],
+            "station": "_".join(station_parts),
+            "program": parts[-5],
+            "date": parts[-4],
+            "time": parts[-3],
+            "serial": parts[-2],
+            "result": parts[-1],
+        }
 
     def _sort_tree_by_mtime(self, parent: QTreeWidgetItem) -> None:
         children = [parent.child(i) for i in range(parent.childCount())]
@@ -364,6 +425,10 @@ class KistlerReportViewer(QMainWindow):
         parent.takeChildren()
         if children:
             parent.addChildren(children)
+
+    def _resize_tree_columns(self) -> None:
+        for column in range(self.csv_tree.columnCount()):
+            self.csv_tree.resizeColumnToContents(column)
 
     def apply_filter(self, text: str) -> None:
         needle = text.strip().lower()
