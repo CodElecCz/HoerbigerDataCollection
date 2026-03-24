@@ -5,63 +5,86 @@ Qt viewer for KISTLER CSV reports.
 Features:
 - Recursively scans a selected KISTLER directory for CSV files
 - Lists discovered CSV files with filtering
-- Converts selected CSV to HTML using csv_to_html/kisler.py
+- Converts selected CSV to HTML using the built-in csv_to_html.kisler module
 - Displays generated HTML in an embedded browser
 """
 
 from __future__ import annotations
 
 import hashlib
-import importlib
-import importlib.util
 import json
 import sys
 import tempfile
 from pathlib import Path
-from typing import Callable
+
+from converters import AVAILABLE_CONVERTERS, DEFAULT_CONVERTER_NAME
+
+BUILT_IN_CONVERTER_SETTING = "built-in:csv_to_html.kisler.convert_file"
+
+
+def get_app_base_dir() -> Path:
+    """Return writable app directory (source folder or EXE folder)."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
 
 
 def load_qt_bindings():
-    """Load Qt classes from PySide6 or PyQt6 at runtime."""
+    """Load Qt classes from PyQt6 first, then PySide6 as fallback."""
     last_error = None
-    for binding in ("PySide6", "PyQt6"):
+    try:
+        from PyQt6 import QtCore as qt_core
+        from PyQt6 import QtGui as qt_gui
+        from PyQt6 import QtWidgets as qt_widgets
         try:
-            qt_core = importlib.import_module(f"{binding}.QtCore")
-            qt_gui = importlib.import_module(f"{binding}.QtGui")
-            qt_widgets = importlib.import_module(f"{binding}.QtWidgets")
-            qt_web = importlib.import_module(f"{binding}.QtWebEngineWidgets")
-            return {
-                "QBrush": qt_gui.QBrush,
-                "QColor": qt_gui.QColor,
-                "Qt": qt_core.Qt,
-                "QUrl": qt_core.QUrl,
-                "QApplication": qt_widgets.QApplication,
-                "QAbstractItemView": qt_widgets.QAbstractItemView,
-                "QFileDialog": qt_widgets.QFileDialog,
-                "QGroupBox": qt_widgets.QGroupBox,
-                "QHeaderView": qt_widgets.QHeaderView,
-                "QHBoxLayout": qt_widgets.QHBoxLayout,
-                "QLabel": qt_widgets.QLabel,
-                "QLineEdit": qt_widgets.QLineEdit,
-                "QMainWindow": qt_widgets.QMainWindow,
-                "QMenu": qt_widgets.QMenu,
-                "QMessageBox": qt_widgets.QMessageBox,
-                "QPushButton": qt_widgets.QPushButton,
-                "QSplitter": qt_widgets.QSplitter,
-                "QStatusBar": qt_widgets.QStatusBar,
-                "QTabWidget": qt_widgets.QTabWidget,
-                "QTreeWidget": qt_widgets.QTreeWidget,
-                "QTreeWidgetItem": qt_widgets.QTreeWidgetItem,
-                "QVBoxLayout": qt_widgets.QVBoxLayout,
-                "QWidget": qt_widgets.QWidget,
-                "QWebEngineView": qt_web.QWebEngineView,
-            }
-        except Exception as exc:
-            last_error = exc
-    raise ImportError(
-        "Neither PySide6 nor PyQt6 with QtWebEngine is available. "
-        "Install one of: 'pip install PySide6' or 'pip install PyQt6 PyQt6-WebEngine'."
-    ) from last_error
+            from PyQt6 import QtWebEngineWidgets as qt_web
+        except Exception:
+            qt_web = None
+    except Exception as pyqt_exc:
+        last_error = pyqt_exc
+        try:
+            from PySide6 import QtCore as qt_core
+            from PySide6 import QtGui as qt_gui
+            from PySide6 import QtWidgets as qt_widgets
+            try:
+                from PySide6 import QtWebEngineWidgets as qt_web
+            except Exception:
+                qt_web = None
+        except Exception as pyside_exc:
+            last_error = pyside_exc
+            raise ImportError(
+                "Neither PySide6 nor PyQt6 is available. "
+                "Install one of: 'pip install PySide6' or 'pip install PyQt6'."
+            ) from last_error
+
+    return {
+        "QBrush": qt_gui.QBrush,
+        "QColor": qt_gui.QColor,
+        "Qt": qt_core.Qt,
+        "QUrl": qt_core.QUrl,
+        "QApplication": qt_widgets.QApplication,
+        "QAbstractItemView": qt_widgets.QAbstractItemView,
+        "QComboBox": qt_widgets.QComboBox,
+        "QFileDialog": qt_widgets.QFileDialog,
+        "QGroupBox": qt_widgets.QGroupBox,
+        "QHeaderView": qt_widgets.QHeaderView,
+        "QHBoxLayout": qt_widgets.QHBoxLayout,
+        "QLabel": qt_widgets.QLabel,
+        "QLineEdit": qt_widgets.QLineEdit,
+        "QMainWindow": qt_widgets.QMainWindow,
+        "QMenu": qt_widgets.QMenu,
+        "QMessageBox": qt_widgets.QMessageBox,
+        "QPushButton": qt_widgets.QPushButton,
+        "QSplitter": qt_widgets.QSplitter,
+        "QStatusBar": qt_widgets.QStatusBar,
+        "QTabWidget": qt_widgets.QTabWidget,
+        "QTextBrowser": qt_widgets.QTextBrowser,
+        "QTreeWidget": qt_widgets.QTreeWidget,
+        "QTreeWidgetItem": qt_widgets.QTreeWidgetItem,
+        "QVBoxLayout": qt_widgets.QVBoxLayout,
+        "QWidget": qt_widgets.QWidget,
+        "QWebEngineView": qt_web.QWebEngineView if qt_web is not None else None,
+    }
 
 
 QT = load_qt_bindings()
@@ -71,42 +94,26 @@ Qt = QT["Qt"]
 QUrl = QT["QUrl"]
 QApplication = QT["QApplication"]
 QAbstractItemView = QT["QAbstractItemView"]
+QComboBox = QT["QComboBox"]
 QFileDialog = QT["QFileDialog"]
 QGroupBox = QT["QGroupBox"]
-QMenu = QT["QMenu"]
 QHeaderView = QT["QHeaderView"]
 QHBoxLayout = QT["QHBoxLayout"]
 QLabel = QT["QLabel"]
 QLineEdit = QT["QLineEdit"]
 QMainWindow = QT["QMainWindow"]
+QMenu = QT["QMenu"]
 QMessageBox = QT["QMessageBox"]
 QPushButton = QT["QPushButton"]
 QSplitter = QT["QSplitter"]
 QStatusBar = QT["QStatusBar"]
 QTabWidget = QT["QTabWidget"]
+QTextBrowser = QT["QTextBrowser"]
 QTreeWidget = QT["QTreeWidget"]
 QTreeWidgetItem = QT["QTreeWidgetItem"]
 QVBoxLayout = QT["QVBoxLayout"]
 QWidget = QT["QWidget"]
 QWebEngineView = QT["QWebEngineView"]
-
-
-def load_converter(converter_path: Path) -> Callable:
-    """Load convert_file from the CSV-to-HTML converter script."""
-    if not converter_path.exists():
-        raise FileNotFoundError(f"Converter script not found: {converter_path}")
-
-    spec = importlib.util.spec_from_file_location("kistler_csv_to_html", converter_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Cannot load converter module from {converter_path}")
-
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-
-    if not hasattr(module, "convert_file"):
-        raise AttributeError("Converter script does not define convert_file")
-
-    return module.convert_file
 
 
 class KistlerReportViewer(QMainWindow):
@@ -123,25 +130,24 @@ class KistlerReportViewer(QMainWindow):
         super().__init__()
         self.setWindowTitle("Report Viewer")
         self.resize(1400, 850)
+        self.uses_webengine = QWebEngineView is not None
 
-        self.base_dir = Path(__file__).resolve().parent
+        self.base_dir = get_app_base_dir()
         self.default_csv_root = (self.base_dir.parent / "Stations" / "KISLER").resolve()
-        self.default_converter_path = self.base_dir / "csv_to_html" / "kisler.py"
         self.settings_path = self.base_dir / "report_viewer_settings.json"
         self.saved_ui_state = self._load_saved_ui_state()
         self.ui_state_applied = False
-        self.converter_path = self._load_saved_converter_path() or self.default_converter_path
-
+        self.converter_name = self._load_saved_converter_name()
         self.generated_dir = Path(tempfile.gettempdir()) / "kistler_report_viewer_html"
         self.generated_dir.mkdir(parents=True, exist_ok=True)
 
         try:
-            self.convert_file = load_converter(self.converter_path)
+            self.convert_file = self._get_converter_callable(self.converter_name)
         except Exception as exc:
             QMessageBox.critical(
                 self,
                 "Initialization Error",
-                f"Failed to load converter:\n{exc}",
+                f"Failed to load internal converter:\n{exc}",
             )
             raise
 
@@ -160,12 +166,16 @@ class KistlerReportViewer(QMainWindow):
 
         self.setCentralWidget(root)
         self.setStatusBar(QStatusBar(self))
+        if not self.uses_webengine:
+            self.statusBar().showMessage(
+                "QtWebEngine is unavailable; using basic HTML preview mode.",
+                8000,
+            )
 
     def _create_viewer_tab(self) -> QWidget:
         viewer = QWidget(self)
         layout = QVBoxLayout(viewer)
 
-        # Path is managed in Settings; keep this internal field for refresh logic.
         self.dir_edit = QLineEdit()
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -232,7 +242,11 @@ class KistlerReportViewer(QMainWindow):
 
         splitter.addWidget(left_panel)
 
-        self.web_view = QWebEngineView()
+        if self.uses_webengine:
+            self.web_view = QWebEngineView()
+        else:
+            self.web_view = QTextBrowser()
+            self.web_view.setOpenExternalLinks(True)
         splitter.addWidget(self.web_view)
 
         splitter.setStretchFactor(0, 0)
@@ -269,18 +283,13 @@ class KistlerReportViewer(QMainWindow):
 
         converter_row = QHBoxLayout()
         converter_row.addWidget(QLabel("CSV to HTML:"))
-
-        self.settings_converter_edit = QLineEdit()
-        self.settings_converter_edit.setPlaceholderText("Choose kisler.py converter script path")
-        converter_row.addWidget(self.settings_converter_edit, 1)
-
-        converter_browse_btn = QPushButton("Browse...")
-        converter_browse_btn.clicked.connect(self.on_converter_browse)
-        converter_row.addWidget(converter_browse_btn)
-
+        self.settings_converter_combo = QComboBox()
+        self.settings_converter_combo.addItems(list(AVAILABLE_CONVERTERS.keys()))
+        self.settings_converter_combo.setCurrentText(self.converter_name)
+        converter_row.addWidget(self.settings_converter_combo, 1)
         group_layout.addLayout(converter_row)
-        kistler_group.setLayout(group_layout)
 
+        kistler_group.setLayout(group_layout)
         layout.addWidget(kistler_group)
 
         hint = QLabel(f"Settings file: {self.settings_path.name}")
@@ -295,10 +304,10 @@ class KistlerReportViewer(QMainWindow):
             initial = saved_dir
         else:
             initial = self.default_csv_root if self.default_csv_root.exists() else self.base_dir
-        self._save_settings(initial, self.converter_path)
+        self._save_settings(initial)
         self.dir_edit.setText(str(initial))
         self.settings_dir_edit.setText(str(initial))
-        self.settings_converter_edit.setText(str(self.converter_path))
+        self.settings_converter_combo.setCurrentText(self.converter_name)
         self.refresh_csv_list()
 
     def on_browse(self) -> None:
@@ -328,40 +337,17 @@ class KistlerReportViewer(QMainWindow):
             self._show_warning(f"Folder does not exist: {selected_path}")
             return
 
-        converter_text = self.settings_converter_edit.text().strip()
-        if not converter_text:
-            self._show_warning("Please choose a CSV to HTML converter script in Settings.")
-            return
-
-        converter_path = Path(converter_text)
-        if not converter_path.exists() or not converter_path.is_file():
-            self._show_warning(f"Converter script does not exist: {converter_path}")
-            return
-
-        try:
-            convert_file = load_converter(converter_path)
-        except Exception as exc:
-            self._show_error(f"Failed to load converter script:\n{exc}")
+        converter_name = self.settings_converter_combo.currentText().strip()
+        if converter_name not in AVAILABLE_CONVERTERS:
+            self._show_warning(f"Unsupported CSV to HTML converter: {converter_name}")
             return
 
         self.dir_edit.setText(str(selected_path))
-        self.convert_file = convert_file
-        self.converter_path = converter_path
-        self._save_settings(selected_path, converter_path)
+        self.converter_name = converter_name
+        self.convert_file = self._get_converter_callable(converter_name)
+        self._save_settings(selected_path)
         self.statusBar().showMessage(f"Saved KISTLER folder setting: {selected_path}", 5000)
         self.refresh_csv_list()
-
-    def on_converter_browse(self) -> None:
-        start_file = self.settings_converter_edit.text().strip() or str(self.default_converter_path)
-        selected, _ = QFileDialog.getOpenFileName(
-            self,
-            "Select CSV to HTML converter script",
-            start_file,
-            "Python Files (*.py);;All Files (*)",
-        )
-        if not selected:
-            return
-        self.settings_converter_edit.setText(selected)
 
     def refresh_csv_list(self) -> None:
         root_text = self.dir_edit.text().strip()
@@ -587,7 +573,11 @@ class KistlerReportViewer(QMainWindow):
         try:
             out_path = self._build_output_path(csv_path)
             self.convert_file(csv_path, out_path)
-            self.web_view.load(QUrl.fromLocalFile(str(out_path)))
+            if self.uses_webengine:
+                self.web_view.load(QUrl.fromLocalFile(str(out_path)))
+            else:
+                html_text = out_path.read_text(encoding="utf-8", errors="replace")
+                self.web_view.setHtml(html_text)
             self.statusBar().showMessage(f"Preview loaded: {csv_path.name}", 4000)
         except Exception as exc:
             self._show_error(f"Failed to generate HTML preview for\n{csv_path}\n\n{exc}")
@@ -607,15 +597,26 @@ class KistlerReportViewer(QMainWindow):
             return None
         return Path(configured)
 
-    def _load_saved_converter_path(self) -> Path | None:
+    def _load_saved_converter_name(self) -> str:
         payload = self._load_settings_payload()
         if not payload:
-            return None
+            return DEFAULT_CONVERTER_NAME
 
-        configured = str(payload.get("converter_script", "")).strip()
-        if not configured:
-            return None
-        return Path(configured)
+        configured_name = str(payload.get("converter_name", "")).strip()
+        if configured_name in AVAILABLE_CONVERTERS:
+            return configured_name
+
+        configured_script = str(payload.get("converter_script", "")).strip()
+        if configured_script == BUILT_IN_CONVERTER_SETTING:
+            return DEFAULT_CONVERTER_NAME
+
+        return DEFAULT_CONVERTER_NAME
+
+    def _get_converter_callable(self, converter_name: str):
+        convert_file = AVAILABLE_CONVERTERS.get(converter_name)
+        if convert_file is None:
+            raise ValueError(f"Unknown converter: {converter_name}")
+        return convert_file
 
     def _load_saved_ui_state(self) -> dict:
         payload = self._load_settings_payload()
@@ -650,10 +651,11 @@ class KistlerReportViewer(QMainWindow):
 
         return payload if isinstance(payload, dict) else {}
 
-    def _save_settings(self, folder: Path, converter_path: Path) -> None:
+    def _save_settings(self, folder: Path) -> None:
         payload = self._load_settings_payload()
         payload["kistler_folder"] = str(folder)
-        payload["converter_script"] = str(converter_path)
+        payload["converter_name"] = self.converter_name
+        payload["converter_script"] = BUILT_IN_CONVERTER_SETTING
         try:
             self.settings_path.write_text(
                 json.dumps(payload, indent=2),
