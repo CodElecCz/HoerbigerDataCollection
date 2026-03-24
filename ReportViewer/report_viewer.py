@@ -134,7 +134,7 @@ class KistlerReportViewer(QMainWindow):
 
         self.base_dir = get_app_base_dir()
         self.default_csv_root = (self.base_dir.parent / "Stations" / "KISLER").resolve()
-        self.settings_path = self.base_dir / "report_viewer_settings.json"
+        self.settings_path = self.base_dir / "ReportViewer.Settings.json"
         self.saved_ui_state = self._load_saved_ui_state()
         self.ui_state_applied = False
         self.converter_name = self._load_saved_converter_name()

@@ -34,7 +34,7 @@ A PyQt6-based desktop application for viewing, filtering, and analyzing KISTLER 
 - Default KISTLER folder path
 - Converter script path
 
-All settings are automatically saved to `report_viewer_settings.json` on exit and restored on startup.
+All settings are automatically saved to `ReportViewer.Settings.json` on exit and restored on startup.
 
 ## Installation
 
@@ -89,7 +89,7 @@ HoerbigerDataCollection/
 ├── README.md                          # This file
 ├── ReportViewer/
 │   ├── report_viewer.py               # Main Qt application
-│   ├── report_viewer_settings.json    # Persistent UI state & settings
+│   ├── ReportViewer.Settings.json     # Persistent UI state & settings
 │   ├── README_kistler_qt_viewer.md    # Technical documentation
 │   └── csv_to_html/
 │       ├── kisler.py                  # CSV-to-HTML converter script
@@ -109,7 +109,7 @@ HoerbigerDataCollection/
 
 ## Settings File Format
 
-The `report_viewer_settings.json` file stores:
+The `ReportViewer.Settings.json` file stores:
 
 ```json
 {
@@ -190,7 +190,7 @@ The application uses the `kisler.py` converter script to generate HTML reports f
 
 **Settings not saved?**
 - Confirm write permissions on the ReportViewer directory
-- Check that `report_viewer_settings.json` is not read-only
+- Check that `ReportViewer.Settings.json` is not read-only
 
 ## Technical Details
 
