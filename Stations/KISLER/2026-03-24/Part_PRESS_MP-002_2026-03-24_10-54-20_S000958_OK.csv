@@ -1,0 +1,539 @@
+Part protocol
+File name;Part_Press_station_MP-002_2026-03-24_10-54-20_S000958_OK.csv
+Protocol version;6.02.00
+
+Index;Result information;Process values - curve related;Process values - EO related;Process values - EO related curve 2;Evaluation objects settings;Switch signal settings;Device information;Servo;Channel-X settings;Channel-Y settings;Cycle control settings;Evaluation settings;Trigger Y settings;Block settings;Measuring curve;Measuring points;Sequence;
+Line;10;30;40;55;70;100;120;140;150;190;220;240;250;260;270;280;520;
+
+
+
+Result information
+Date;2026/03/24
+Time;10:54:20;UTC+01:00
+Cycle number;987
+Total result;OK
+Triggered switch signals;
+Part serial number;S000958
+Measuring program name;GVC10 Damper
+Measuring program number;2
+Zero X offset;0.00;mm
+Tara Y offset;0.26;kN
+
+
+
+
+
+
+
+
+
+Process values - curve related;;;;;;Process values - curve 2 related
+Block X;83.31;mm;XMIN-X;72.98;mm;Block X;0.00;mm;XMIN-X;0.00;mm
+Block Y;2.00;kN;XMIN-Y;0.01;kN;Block Y;0.00;mm;XMIN-Y;0.00;mm
+Ref X;72.98;mm;XMAX-X;83.31;mm;Ref X;72.98;mm;XMAX-X;0.00;mm
+Peak-peak X;10.34;mm;XMAX-Y;2.00;kN;Peak-peak X;0.00;mm;XMAX-Y;0.00;mm
+Peak-peak Y;2.04;kN;YMIN-X;75.35;mm;Peak-peak Y;0.00;mm;YMIN-X;0.00;mm
+;;;YMIN-Y;-0.02;kN;;;;YMIN-Y;0.00;mm
+;;;YMAX-X;83.31;mm;;;;YMAX-X;0.00;mm
+;;;YMAX-Y;2.02;kN;;;;YMAX-Y;0.00;mm
+
+Process values - EO related;Result;Entry;Exit;XMIN-X;XMIN-Y;XMAX-X;XMAX-Y;YMIN-Y;YMIN-X;YMAX-Y;YMAX-X;Calculated result;NOK cause;Violation X;Violation Y;Ref X;Ref Y;X at Delta-Y;Entry-X;Entry-Y;Exit-X;Exit-Y
+;;;;mm;kN;mm;kN;kN;mm;kN;mm;-;-;mm;kN;mm;kN;mm;mm;kN;mm;kN
+EO-01;OK;83.30;;83.30;1.80;83.31;2.00;;;2.02;83.31;;;;;;;;;;;;
+EO-02;None;
+EO-03;None;
+EO-04;None;
+EO-05;None;
+EO-06;None;
+EO-07;None;
+EO-08;None;
+EO-09;None;
+EO-10;None;
+
+
+
+Process values - EO related curve 2;Result;Entry;Exit;XMIN-X;XMIN-Y;XMAX-X;XMAX-Y;YMIN-Y;YMIN-X;YMAX-Y;YMAX-X;Calculated result;NOK cause;Violation X;Violation Y;Ref X;Ref Y;X at Delta-Y;Entry-X;Entry-Y;Exit-X;Exit-Y
+;;;;mm;mm;mm;mm;mm;mm;mm;mm;-;-;mm;mm;mm;mm;mm;mm;mm;mm;mm
+EO-01;None
+EO-02;None
+EO-03;None
+EO-04;None
+EO-05;None
+EO-06;None
+EO-07;None
+EO-08;None
+EO-09;None
+EO-10;None
+
+
+
+Evaluation objects settings;Reaction;X reference;Y-Reference;XMin;XMax;YMin;YMax;Entry;Exit;Curve part;Catch zone X;Catch zone Y;EO Name;Description;Re-entry ignored;Generate statistics;X-Hysteresis;Y-Hysteresis;Down sampling rate;Calc limit min;Calc limit max;Grad limit min;Grad limit max;Hyst limit min;Hyst limit max;Speed limit min;Speed limit max;Time limit min;Time limit max;Is curve inside box;GetRef type;CalcInput1 | dx;CalcInput2 | dx;Calc operation;Work limit min;Work limit max;Average limit min;Average limit max;Max bending;Detection dX;Signal;Operation;State;Visualization offset X;Visualization offset Y;Delta-Y Max;X1Min;X1Max;X2Min;X2Max;Y1Min;Y1Max;Y2Min;Y2Max;Min bending;Ripple height min;Ripple height max;X reference Index;Y-Reference Index;Curve index;NOK entry ignored;-
+EO-01;UNI-BOX;ABSOLUTE;ABSOLUTE;83.00;83.80;1.80;2.20;BELOW;None;ANY;CATCH_ZONE_UNLIMITED;CATCH_ZONE_UNLIMITED;;;FALSE;TRUE;0.00;0.00;1;;;;;;;;;;;;;;;;;;;;;;;;;0.00;0.00;;;;;;;;;;;;;;;1;FALSE;
+EO-02;OFF
+EO-03;OFF
+EO-04;OFF
+EO-05;OFF
+EO-06;OFF
+EO-07;OFF
+EO-08;OFF
+EO-09;OFF
+EO-10;OFF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Switch signal settings;Channel;Threshold at;;Trigger from;Reference;Latch until
+Type S1;OFF
+Type S2;OFF
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Device information
+Device type;maXYmos_NC
+Device type number;5847B0
+Device serial number;24132NC
+Firmware version;1.8.10 (re1c268)
+-
+-
+-
+-
+-
+IP Address;192.168.0.52
+Network name;Press station
+Profibus address;10
+-
+-
+-
+Device name;Press station
+Company name;HOERBIGER
+Comment;
+
+Servo
+Servo version;n/a;Servo max. speed;250.000;mm/s
+Type NC Joining Module;n/a;Range min.;0.00;mm
+Serial number NC j.mod.;n/a;Range max.;200.00;mm
+Brake;Holding Brake 0.94 Nm;Servo reference position;35.00;mm
+Operating mode;Manual Work;Max. jog speed;10.000;mm/s
+Brake test;Disabled;Jog. range min;0.00;mm
+Automatic power;False;Jog. range max;200.00;mm
+;;Reference speed;10.000;mm/s
+
+Channel-X settings
+Use the settings from global setup;True
+Sensor-X type;Servo;;;;Extended Sensor-X type;None
+Unit;mm;;;;;-
+Used range from;35.00;mm;;;;-;mm
+Used range to;200.00;mm;;;;-;mm
+Decimal places;2 (iiiii.ff);;;;;-
+Scaling by;-;;;;;-
+Sensitivity;-;mm;-;mV/V;;-;mm;-;mV/V
+Zero point;-;mm;-;mV/V;;-;mm;-;mV/V
+Invert signal;-;;;;;-
+Filter;500 Hz;;;;;-
+Test point;0.00;mm;;;;-;mm
+Tolerance;2.00;mm;;;;-;mm
+Enable sensor test by dig-input;TRUE;;;;;-
+Zoom from;0.00;mm;;;;-;mm
+Zoom to;100.00;mm;;;;-;mm
+Master Measurement Enable;FALSE;;;;;-
+Master Measurement Nominal Position;0.00;mm;;;;-;mm
+Encoder interpolation factor;-;;;;;-
+Encoder electrical interface;-;;;;;-
+Encoder referencing type;-;;;;;-
+Encoder referencing edge;-;;;;;-
+Encoder pulses per minute;-;;;;;-
+Encoder use every nth-mark;-;;;;;-
+Reference;-;;;;;-
+Encoder reference points;-;;;;;-
+Encoder coding;-;;;;;-
+Encoder width;-;;;;;-
+Encoder optimization;-;;;;;-
+Encoder clock frequency;-;;;;;-
+Termination resistor;-;;;;;-
+
+
+
+
+
+
+
+
+Channel-Y settings
+Use the settings from global setup;True
+Sensor-Y type;Strain Gage;;;;;;;;;;;Extended Sensor-Y type;None
+Unit;kN;;;;;;;;;;;Unit;-
+Used range from;0.00;kN;;;;;;;;;;Used range from;-;-
+Used range to;10.00;kN;;;;;;;;;;Used range to;-;-
+Decimal places;2 (iiiii.ff);;;;;;;;;;;Decimal places;-
+Scaling by;Calibration Sheet;;;;;;;;;;;Scaling by;-
+Sensitivity;10.00;kN;0.51550;mV/V;;;;;;;;Sensitivity;-;-;-;V
+Zero point;0.00;kN;-0.00231;mV/V;;;;;;;;;;Zero point;-;-;-;V
+Invert signal;FALSE;;;;;;;;;;;Invert signal;-
+Filter;OFF;;;;;;;;;;;Filter;-
+Piezo reset;-;;;;;;;;;;;Piezo reset;-
+Test point;0.00;kN;;;;;;;;;;Test point;-;-
+Tolerance;1.00;kN;;;;;;;;;;Tolerance;-;-
+Enable sensor test by dig-input;FALSE;;;;;;;;;;;Enable sensor test by dig-input;-
+Zoom from;0.00;kN;;;;;;;;;;Zoom from;-;-
+Zoom to;1000.00;kN;;;;;;;;;;Zoom to;-;-
+
+
+
+
+
+
+
+
+
+
+
+
+Cycle control settings
+Use the settings from global setup;True
+Measuring function;Y (X)
+Delta-X;User-Defined;0.0500;mm
+START condition;Dig-Input
+STOP condition;Dig-Input
+Cycle time out;60.000;s
+Turning point LEFT;NONE
+Turning point RIGHT;YMAX
+Cut curve at;NONE
+Gradient Delta X;-
+Measuring function 2;Off
+Delta-X;Automatic
+Turning point LEFT;NONE
+Turning point RIGHT;YMAX
+Cut curve at;NONE
+
+
+
+
+Evaluation settings
+Capture only first NOK-EO for statistics;False
+Hysteresis-X;0.0;%
+Hysteresis-Y;0.0;%
+
+
+
+
+
+
+Trigger Y settings
+Threshold;0.00;kN
+Value X at Trigger Y;0.00;mm
+Approach from;BELOW
+
+
+
+
+
+
+Block settings
+Value X at block;XMAX
+Block at;0.00;mm
+
+
+
+
+
+
+
+Measuring curve
+Number of measuring points;235;Number of measuring points curve 2;0
+Ref. Graph on;ABSOLUTE;Ref. Graph on curve 2;ABSOLUTE
+Curve segment;0;234;0;0;233;235;0;0;
+Curve segment curve 2;0;0;0;0;0;0;0;0;
+
+
+Time;X(ABSOLUTE);Y;X(ABSOLUTE);X2(ABSOLUTE);Y2;X2(ABSOLUTE)
+
+s;mm;kN;mm;mm;mm;mm
+0.0001;72.97600;0.00781;72.97600
+0.0832;73.02600;0.00176;73.02600
+0.1404;73.07600;0.00636;73.07600
+0.1925;73.12620;0.01373;73.12620
+0.2442;73.17630;0.01244;73.17630
+0.2942;73.22630;0.00632;73.22630
+0.3447;73.27630;-0.00198;73.27630
+0.3949;73.32630;0.00938;73.32630
+0.4445;73.37630;0.00517;73.37630
+0.4950;73.42630;0.00544;73.42630
+0.5444;73.47640;0.00543;73.47640
+0.5949;73.52640;0.00646;73.52640
+0.6447;73.57640;0.01479;73.57640
+0.6946;73.62640;0.00653;73.62640
+0.7451;73.67650;0.00267;73.67650
+0.7947;73.72650;0.00701;73.72650
+0.8454;73.77670;0.00925;73.77670
+0.8947;73.82670;0.00960;73.82670
+0.9454;73.87690;0.01644;73.87690
+0.9954;73.92700;0.00268;73.92700
+1.0454;73.97710;0.00384;73.97710
+1.0959;74.02720;0.00377;74.02720
+1.1451;74.07720;0.00895;74.07720
+1.1959;74.12730;0.00619;74.12730
+1.2454;74.17730;0.00553;74.17730
+1.2957;74.22730;0.01236;74.22730
+1.3459;74.27730;0.01542;74.27730
+1.3954;74.32730;0.00936;74.32730
+1.4461;74.37740;0.00490;74.37740
+1.4953;74.42740;0.00344;74.42740
+1.5461;74.47750;0.01636;74.47750
+1.5959;74.52770;-0.00259;74.52770
+1.6462;74.57780;0.00830;74.57780
+1.6964;74.62780;0.00764;74.62780
+1.7459;74.67780;0.00594;74.67780
+1.7966;74.72790;0.00662;74.72790
+1.8461;74.77810;0.01309;74.77810
+1.8966;74.82810;0.01063;74.82810
+1.9463;74.87810;0.00607;74.87810
+1.9964;74.92820;0.00344;74.92820
+2.0468;74.97820;-0.00043;74.97820
+2.0961;75.02820;0.00167;75.02820
+2.1469;75.07830;0.00267;75.07830
+2.1966;75.12840;0.01106;75.12840
+2.2469;75.17850;0.00093;75.17850
+2.2971;75.22860;0.00227;75.22860
+2.3466;75.27860;0.00404;75.27860
+2.3973;75.32870;0.00472;75.32870
+2.4225;75.35400;-0.01592;75.35400
+2.4469;75.37890;0.00859;75.37890
+2.4974;75.42890;0.01018;75.42890
+2.5474;75.47910;0.00386;75.47910
+2.5973;75.52910;0.00527;75.52910
+2.6476;75.57910;-0.00255;75.57910
+2.6971;75.62910;0.00252;75.62910
+2.7478;75.67930;0.00044;75.67930
+2.7974;75.72930;-0.00123;75.72930
+2.8478;75.77950;0.00752;75.77950
+2.8979;75.82950;0.00684;75.82950
+2.9479;75.87970;0.00328;75.87970
+2.9984;75.92970;0.00524;75.92970
+3.0476;75.97970;0.00578;75.97970
+3.0983;76.02980;-0.00199;76.02980
+3.1480;76.08000;0.00046;76.08000
+3.1983;76.13000;0.00701;76.13000
+3.2485;76.18000;0.00451;76.18000
+3.2981;76.23000;0.01585;76.23000
+3.3486;76.28000;0.01541;76.28000
+3.3981;76.33010;0.01176;76.33010
+3.4486;76.38010;0.02309;76.38010
+3.4985;76.43030;0.01494;76.43030
+3.5485;76.48040;0.02552;76.48040
+3.5990;76.53050;0.02584;76.53050
+3.6486;76.58050;0.02251;76.58050
+3.6993;76.63070;0.02171;76.63070
+3.7488;76.68090;0.01368;76.68090
+3.7993;76.73100;0.02672;76.73100
+3.8496;76.78120;0.02335;76.78120
+3.8993;76.83120;0.03436;76.83120
+3.9501;76.88140;0.02165;76.88140
+3.9993;76.93140;0.02849;76.93140
+4.0500;76.98150;0.02428;76.98150
+4.0995;77.03150;0.02681;77.03150
+4.1498;77.08150;0.01997;77.08150
+4.2001;77.13160;0.02741;77.13160
+4.2495;77.18160;0.02446;77.18160
+4.3003;77.23170;0.02055;77.23170
+4.3498;77.28180;0.02516;77.28180
+4.4003;77.33180;0.02700;77.33180
+4.4500;77.38190;0.02586;77.38190
+4.5000;77.43190;0.03187;77.43190
+4.5505;77.48200;0.02289;77.48200
+4.6000;77.53210;0.02329;77.53210
+4.6508;77.58220;0.02552;77.58220
+4.7003;77.63230;0.02370;77.63230
+4.7508;77.68250;0.01845;77.68250
+4.8007;77.73250;0.01605;77.73250
+4.8505;77.78250;0.02167;77.78250
+4.9012;77.83270;0.02021;77.83270
+4.9508;77.88290;0.01742;77.88290
+5.0012;77.93290;0.02626;77.93290
+5.0510;77.98290;0.02267;77.98290
+5.1013;78.03300;0.02987;78.03300
+5.1515;78.08310;0.03478;78.08310
+5.2010;78.13310;0.03482;78.13310
+5.2517;78.18310;0.05784;78.18310
+5.3010;78.23310;0.06740;78.23310
+5.3517;78.28320;0.15033;78.28320
+5.3906;78.32170;0.25345;78.32170
+5.4070;78.33840;0.35677;78.33840
+5.4223;78.35380;0.45823;78.35380
+5.4390;78.37040;0.55883;78.37040
+5.4581;78.38910;0.66210;78.38910
+5.4784;78.40930;0.76592;78.40930
+5.5032;78.43410;0.86624;78.43410
+5.5312;78.46240;0.96747;78.46240
+5.5813;78.51260;1.05010;78.51260
+5.6312;78.56270;1.06954;78.56270
+5.6807;78.61280;0.97874;78.61280
+5.7312;78.66280;0.93264;78.66280
+5.7539;78.68580;0.82634;78.68580
+5.7711;78.70350;0.72364;78.70350
+5.7922;78.72490;0.62048;78.72490
+5.8225;78.75460;0.51495;78.75460
+5.8238;78.75590;0.39279;78.75590
+5.8241;78.75610;0.28623;78.75610
+5.8244;78.75660;0.17982;78.75660
+5.8293;78.76210;0.07054;78.76210
+5.8333;78.76630;0.18724;78.76630
+5.8837;78.81630;0.14939;78.81630
+5.9342;78.86630;0.14264;78.86630
+5.9847;78.91650;0.14134;78.91650
+6.0345;78.96660;0.13402;78.96660
+6.0851;79.01670;0.11820;79.01670
+6.1345;79.06670;0.10260;79.06670
+6.1850;79.11670;0.09977;79.11670
+6.2349;79.16690;0.09594;79.16690
+6.2849;79.21690;0.08845;79.21690
+6.3354;79.26690;0.09540;79.26690
+6.3847;79.31690;0.09989;79.31690
+6.4354;79.36700;0.12559;79.36700
+6.4850;79.41700;0.12893;79.41700
+6.5355;79.46720;0.09805;79.46720
+6.5854;79.51720;0.09058;79.51720
+6.6352;79.56730;0.09185;79.56730
+6.6859;79.61750;0.08401;79.61750
+6.7354;79.66760;0.11349;79.66760
+6.7862;79.71770;0.13531;79.71770
+6.8357;79.76770;0.08375;79.76770
+6.8860;79.81780;0.08108;79.81780
+6.9362;79.86790;0.10982;79.86790
+6.9859;79.91800;0.12617;79.91800
+7.0364;79.96800;0.08714;79.96800
+7.0859;80.01820;0.08869;80.01820
+7.1367;80.06830;0.10306;80.06830
+7.1866;80.11850;0.09717;80.11850
+7.2366;80.16860;0.10490;80.16860
+7.2871;80.21870;0.10255;80.21870
+7.3364;80.26870;0.09967;80.26870
+7.3872;80.31880;0.08889;80.31880
+7.4369;80.36900;0.09612;80.36900
+7.4874;80.41910;0.11068;80.41910
+7.5377;80.46930;0.09627;80.46930
+7.5871;80.51930;0.10995;80.51930
+7.6376;80.56930;0.09718;80.56930
+7.6871;80.61940;0.11706;80.61940
+7.7378;80.66950;0.13566;80.66950
+7.7877;80.71970;0.10281;80.71970
+7.8379;80.76980;0.10273;80.76980
+7.8884;80.82000;0.11425;80.82000
+7.9379;80.87000;0.13857;80.87000
+7.9886;80.92020;0.14164;80.92020
+8.0024;80.93390;0.04115;80.93390
+8.0064;80.93810;0.14179;80.93810
+8.0559;80.98820;0.09356;80.98820
+8.1067;81.03820;0.11818;81.03820
+8.1561;81.08820;0.13875;81.08820
+8.2066;81.13830;0.11349;81.13830
+8.2566;81.18850;0.10998;81.18850
+8.3063;81.23850;0.10856;81.23850
+8.3568;81.28850;0.12438;81.28850
+8.4064;81.33870;0.10111;81.33870
+8.4571;81.38880;0.11710;81.38880
+8.5066;81.43880;0.10363;81.43880
+8.5571;81.48900;0.11279;81.48900
+8.6074;81.53910;0.10336;81.53910
+8.6571;81.58920;0.12582;81.58920
+8.7076;81.63920;0.14928;81.63920
+8.7568;81.68920;0.12997;81.68920
+8.8076;81.73940;0.11767;81.73940
+8.8573;81.78940;0.11792;81.78940
+8.9074;81.83940;0.14576;81.83940
+8.9579;81.88950;0.13136;81.88950
+9.0073;81.93960;0.12058;81.93960
+9.0578;81.98960;0.10918;81.98960
+9.1073;82.03960;0.12732;82.03960
+9.1578;82.08960;0.14499;82.08960
+9.2078;82.13980;0.12869;82.13980
+9.2578;82.19000;0.11879;82.19000
+9.3083;82.24000;0.12506;82.24000
+9.3578;82.29010;0.13306;82.29010
+9.4086;82.34020;0.15980;82.34020
+9.4581;82.39020;0.13988;82.39020
+9.4627;82.39480;0.03628;82.39480
+9.5465;82.44480;0.11348;82.44480
+9.7428;82.49480;0.14656;82.49480
+9.9916;82.54480;0.11127;82.54480
+10.2420;82.59480;0.08936;82.59480
+10.4905;82.64480;0.11595;82.64480
+10.7418;82.69480;0.12852;82.69480
+10.9900;82.74480;0.10532;82.74480
+11.2420;82.79480;0.13842;82.79480
+11.4912;82.84480;0.15062;82.84480
+11.7412;82.89480;0.20556;82.89480
+11.9919;82.94480;0.24126;82.94480
+12.2405;82.99480;0.30056;82.99480
+12.4922;83.04480;0.36208;83.04480
+12.7401;83.09480;0.42239;83.09480
+12.9857;83.14360;0.52528;83.14360
+13.2227;83.19090;0.62577;83.19090
+13.3971;83.22610;0.72951;83.22610
+13.4807;83.24260;0.83075;83.24260
+13.5437;83.25500;0.93426;83.25500
+13.5899;83.26410;1.03529;83.26410
+13.6286;83.27180;1.13961;83.27180
+13.6612;83.27820;1.23970;83.27820
+13.6901;83.28390;1.34381;83.28390
+13.7164;83.28910;1.44775;83.28910
+13.7409;83.29400;1.54802;83.29400
+13.7622;83.29820;1.64828;83.29820
+13.7827;83.30220;1.75322;83.30220
+13.8017;83.30600;1.85350;83.30600
+13.8199;83.30970;1.95621;83.30970
+13.8346;83.31200;2.02324;83.31200
+13.8629;83.31220;2.00473;83.31220
+
+
+
+
+
+Sequence Editor;
+Main;Label;LABEL;1;
+;Output;OUTPUT;Value;0XXXXXXXXXXX;
+;Motion;MOTION;Reference;ABSOLUTE;Position;59.00;mm;User;SPEED;15.000;mm/s;User;Max. force;0.50;kN;User;Tara;Disabled;Tara. position;0.00;mm;User;Deformation;0.0000;mm/kN;User;Stop on external signal;False;Condition;POSITION;Enable Passive Deformation Compensation;False;Used force sensor;Primary;Reload UVT;False;
+;Output;OUTPUT;Value;1XXXXXXXXXXX;
+;Input;INPUT;FB-I-UNI-0;LEVEL;HIGH;Timeout;2000;ms;Text;;Error on timeout;Enabled;
+;Motion;MOTION;Reference;ABSOLUTE;Position;61.00;mm;User;SPEED;5.000;mm/s;User;Max. force;0.50;kN;User;Tara;Disabled;Tara. position;0.00;mm;User;Deformation;0.0000;mm/kN;User;Stop on external signal;False;Condition;POSITION;Enable Passive Deformation Compensation;False;Used force sensor;Primary;Reload UVT;False;
+;Motion;MOTION;Reference;ABSOLUTE;Position;73.00;mm;User;SPEED;5.000;mm/s;User;Max. force;0.50;kN;User;Tara;Disabled;Tara. position;0.00;mm;User;Deformation;0.0000;mm/kN;User;Stop on external signal;False;Condition;POSITION;Enable Passive Deformation Compensation;False;Used force sensor;Primary;Reload UVT;False;
+;Measure;MEASURE;START;
+;Motion;MOTION;Reference;ABSOLUTE;Position;82.50;mm;User;SPEED;1.000;mm/s;User;Max. force;2.50;kN;User;Tara;Disabled;Tara. position;0.00;mm;User;Deformation;0.0000;mm/kN;User;Stop on external signal;False;Condition;POSITION;Enable Passive Deformation Compensation;False;Used force sensor;Primary;Reload UVT;False;
+;Motion;MOTION;Reference;ABSOLUTE;Position;84.00;mm;User;SPEED;0.200;mm/s;User;Max. force;3.50;kN;User;Tara;Disabled;Tara. position;0.00;mm;User;Deformation;0.0000;mm/kN;User;Stop on external signal;False;Condition;FORCE;Force;2.00;kN;User;Approach;ABSOLUTE_FROM_BELOW;Block motion control;Disabled;;;;;Used force sensor;Primary;Reload UVT;False;
+;Timer;TIMER;100;ms;User;
+;Measure;MEASURE;STOP;Target Result;;
+;Motion;MOTION;Reference;ABSOLUTE;Position;78.00;mm;User;SPEED;2.000;mm/s;User;Max. force;10.00;kN;User;Tara;Disabled;Tara. position;0.00;mm;User;Deformation;0.0000;mm/kN;User;Stop on external signal;False;Condition;POSITION;Enable Passive Deformation Compensation;False;Used force sensor;Primary;Reload UVT;False;
+;Output;OUTPUT;Value;0XXXXXXXXXXX;
+;Home position;HOME_POSITION;Reference;ABSOLUTE;Position;35.00;mm;User;SPEED;10.000;mm/s;User;Max. force;0.50;kN;User;Min. force;-0.50;kN;User;
+;Sequence end;SEQUENCE_END;
+Sub.1;Label;LABEL;1;
+Sub.2;Label;LABEL;1;
+Sub.3;Label;LABEL;1;
