@@ -27,18 +27,24 @@ def load_qt_bindings():
     for binding in ("PySide6", "PyQt6"):
         try:
             qt_core = importlib.import_module(f"{binding}.QtCore")
+            qt_gui = importlib.import_module(f"{binding}.QtGui")
             qt_widgets = importlib.import_module(f"{binding}.QtWidgets")
             qt_web = importlib.import_module(f"{binding}.QtWebEngineWidgets")
             return {
+                "QBrush": qt_gui.QBrush,
+                "QColor": qt_gui.QColor,
                 "Qt": qt_core.Qt,
                 "QUrl": qt_core.QUrl,
                 "QApplication": qt_widgets.QApplication,
+                "QAbstractItemView": qt_widgets.QAbstractItemView,
                 "QFileDialog": qt_widgets.QFileDialog,
+                "QGroupBox": qt_widgets.QGroupBox,
                 "QHeaderView": qt_widgets.QHeaderView,
                 "QHBoxLayout": qt_widgets.QHBoxLayout,
                 "QLabel": qt_widgets.QLabel,
                 "QLineEdit": qt_widgets.QLineEdit,
                 "QMainWindow": qt_widgets.QMainWindow,
+                "QMenu": qt_widgets.QMenu,
                 "QMessageBox": qt_widgets.QMessageBox,
                 "QPushButton": qt_widgets.QPushButton,
                 "QSplitter": qt_widgets.QSplitter,
@@ -59,10 +65,15 @@ def load_qt_bindings():
 
 
 QT = load_qt_bindings()
+QBrush = QT["QBrush"]
+QColor = QT["QColor"]
 Qt = QT["Qt"]
 QUrl = QT["QUrl"]
 QApplication = QT["QApplication"]
+QAbstractItemView = QT["QAbstractItemView"]
 QFileDialog = QT["QFileDialog"]
+QGroupBox = QT["QGroupBox"]
+QMenu = QT["QMenu"]
 QHeaderView = QT["QHeaderView"]
 QHBoxLayout = QT["QHBoxLayout"]
 QLabel = QT["QLabel"]
@@ -104,10 +115,9 @@ class KistlerReportViewer(QMainWindow):
     COL_TIME = 0
     COL_STATION = 1
     COL_PROGRAM = 2
-    COL_DATE = 3
-    COL_SERIAL = 4
-    COL_RESULT = 5
-    COL_FILENAME = 6
+    COL_SERIAL = 3
+    COL_RESULT = 4
+    COL_FILENAME = 5
 
     def __init__(self) -> None:
         super().__init__()
@@ -118,6 +128,8 @@ class KistlerReportViewer(QMainWindow):
         self.default_csv_root = (self.base_dir.parent / "Stations" / "KISLER").resolve()
         self.default_converter_path = self.base_dir / "csv_to_html" / "kisler.py"
         self.settings_path = self.base_dir / "report_viewer_settings.json"
+        self.saved_ui_state = self._load_saved_ui_state()
+        self.ui_state_applied = False
         self.converter_path = self._load_saved_converter_path() or self.default_converter_path
 
         self.generated_dir = Path(tempfile.gettempdir()) / "kistler_report_viewer_html"
@@ -134,6 +146,7 @@ class KistlerReportViewer(QMainWindow):
             raise
 
         self._build_ui()
+        self._restore_window_state()
         self._set_initial_directory()
 
     def _build_ui(self) -> None:
@@ -169,21 +182,44 @@ class KistlerReportViewer(QMainWindow):
         left_layout.addLayout(filter_row)
 
         self.csv_tree = QTreeWidget()
-        self.csv_tree.setColumnCount(7)
+        self.csv_tree.setColumnCount(6)
         self.csv_tree.setHeaderLabels(
             [
                 "Time",
                 "Station",
                 "Program",
-                "Date",
-                "Serial Number",
+                "SN",
                 "Result",
                 "File name",
             ]
         )
+        self.csv_tree.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.csv_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.csv_tree.setAllColumnsShowFocus(True)
+        self.csv_tree.setAlternatingRowColors(True)
+        self.csv_tree.setStyleSheet(
+            """
+            QTreeWidget {
+                alternate-background-color: #f7f9fc;
+            }
+            QTreeWidget::item {
+                padding: 3px 2px;
+            }
+            QTreeWidget::item:selected,
+            QTreeWidget::item:selected:active,
+            QTreeWidget::item:selected:!active {
+                background-color: #1f6feb;
+                color: #ffffff;
+                border: 1px solid #0f4fb8;
+            }
+            """
+        )
         header = self.csv_tree.header()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        header.setStretchLastSection(True)
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setResizeContentsPrecision(-1)
+        header.setStretchLastSection(False)
+        header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        header.customContextMenuRequested.connect(self.on_header_context_menu)
         self.csv_tree.itemSelectionChanged.connect(self.preview_selected)
         left_layout.addWidget(self.csv_tree, 1)
 
@@ -201,7 +237,8 @@ class KistlerReportViewer(QMainWindow):
 
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([430, 970])
+        splitter.setSizes([760, 640])
+        self.main_splitter = splitter
 
         layout.addWidget(splitter, 1)
         return viewer
@@ -210,11 +247,11 @@ class KistlerReportViewer(QMainWindow):
         settings = QWidget(self)
         layout = QVBoxLayout(settings)
 
-        title = QLabel("Default Settings")
-        layout.addWidget(title)
+        kistler_group = QGroupBox("KISTLER")
+        group_layout = QVBoxLayout()
 
         folder_row = QHBoxLayout()
-        folder_row.addWidget(QLabel("KISTLER Folder:"))
+        folder_row.addWidget(QLabel("Folder:"))
 
         self.settings_dir_edit = QLineEdit()
         self.settings_dir_edit.setPlaceholderText("Choose default KISTLER folder path")
@@ -228,10 +265,10 @@ class KistlerReportViewer(QMainWindow):
         save_btn.clicked.connect(self.on_save_settings)
         folder_row.addWidget(save_btn)
 
-        layout.addLayout(folder_row)
+        group_layout.addLayout(folder_row)
 
         converter_row = QHBoxLayout()
-        converter_row.addWidget(QLabel("CSV to HTML Script:"))
+        converter_row.addWidget(QLabel("CSV to HTML:"))
 
         self.settings_converter_edit = QLineEdit()
         self.settings_converter_edit.setPlaceholderText("Choose kisler.py converter script path")
@@ -241,7 +278,10 @@ class KistlerReportViewer(QMainWindow):
         converter_browse_btn.clicked.connect(self.on_converter_browse)
         converter_row.addWidget(converter_browse_btn)
 
-        layout.addLayout(converter_row)
+        group_layout.addLayout(converter_row)
+        kistler_group.setLayout(group_layout)
+
+        layout.addWidget(kistler_group)
 
         hint = QLabel(f"Settings file: {self.settings_path.name}")
         layout.addWidget(hint)
@@ -344,6 +384,7 @@ class KistlerReportViewer(QMainWindow):
 
         self._populate_tree(root, files)
         self._resize_tree_columns()
+        self._apply_saved_widget_sizes()
 
         self.apply_filter(self.filter_edit.text())
         self.statusBar().showMessage(f"Found {len(files)} CSV files in {root}", 5000)
@@ -377,10 +418,10 @@ class KistlerReportViewer(QMainWindow):
             file_item.setText(self.COL_TIME, fields["time"])
             file_item.setText(self.COL_STATION, fields["station"])
             file_item.setText(self.COL_PROGRAM, fields["program"])
-            file_item.setText(self.COL_DATE, fields["date"])
             file_item.setText(self.COL_SERIAL, fields["serial"])
             file_item.setText(self.COL_RESULT, fields["result"])
             file_item.setText(self.COL_FILENAME, rel.parts[-1])
+            self._apply_result_styling(file_item, fields["result"])
             file_item.setData(0, self.ROLE_PATH, str(csv_file))
             file_item.setData(0, self.ROLE_MTIME, mtime)
             file_item.setToolTip(0, str(csv_file))
@@ -396,6 +437,7 @@ class KistlerReportViewer(QMainWindow):
                 "part": "",
                 "station": "",
                 "program": "",
+                "date_time": "",
                 "date": "",
                 "time": "",
                 "serial": "",
@@ -403,15 +445,30 @@ class KistlerReportViewer(QMainWindow):
             }
 
         station_parts = parts[1:-5]
+        date_value = parts[-4]
+        time_value = parts[-3]
         return {
             "part": parts[0],
             "station": "_".join(station_parts),
             "program": parts[-5],
-            "date": parts[-4],
-            "time": parts[-3],
+            "date_time": f"{date_value} {time_value}",
+            "date": date_value,
+            "time": time_value,
             "serial": parts[-2],
             "result": parts[-1],
         }
+
+    def _apply_result_styling(self, item: QTreeWidgetItem, result: str) -> None:
+        result_upper = result.strip().upper()
+        if result_upper == "NOK":
+            background = QBrush(QColor("#f8d7da"))
+        elif result_upper == "OK":
+            background = QBrush(QColor("#d4edda"))
+        else:
+            return
+
+        for column in range(self.csv_tree.columnCount()):
+            item.setBackground(column, background)
 
     def _sort_tree_by_mtime(self, parent: QTreeWidgetItem) -> None:
         children = [parent.child(i) for i in range(parent.childCount())]
@@ -427,8 +484,46 @@ class KistlerReportViewer(QMainWindow):
             parent.addChildren(children)
 
     def _resize_tree_columns(self) -> None:
+        header = self.csv_tree.header()
         for column in range(self.csv_tree.columnCount()):
+            if column == self.COL_FILENAME:
+                continue
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
             self.csv_tree.resizeColumnToContents(column)
+        for column in range(self.csv_tree.columnCount()):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Interactive)
+        header.setStretchLastSection(True)
+
+    def _restore_window_state(self) -> None:
+        window_state = self.saved_ui_state.get("window", {})
+        width = window_state.get("width")
+        height = window_state.get("height")
+        if isinstance(width, int) and isinstance(height, int):
+            self.resize(width, height)
+
+    def _apply_saved_widget_sizes(self) -> None:
+        if self.ui_state_applied:
+            return
+
+        splitter_sizes = self.saved_ui_state.get("splitter_sizes")
+        if isinstance(splitter_sizes, list) and len(splitter_sizes) == 2:
+            if all(isinstance(size, int) and size > 0 for size in splitter_sizes):
+                self.main_splitter.setSizes(splitter_sizes)
+
+        column_widths = self.saved_ui_state.get("column_widths", {})
+        if isinstance(column_widths, dict):
+            for column in range(self.csv_tree.columnCount()):
+                saved_width = column_widths.get(str(column))
+                if isinstance(saved_width, int) and saved_width > 0:
+                    self.csv_tree.setColumnWidth(column, saved_width)
+
+        column_visibility = self.saved_ui_state.get("column_visibility", {})
+        if isinstance(column_visibility, dict):
+            for column in range(self.csv_tree.columnCount()):
+                is_visible = column_visibility.get(str(column), True)
+                self.csv_tree.setColumnHidden(column, not is_visible)
+
+        self.ui_state_applied = True
 
     def apply_filter(self, text: str) -> None:
         needle = text.strip().lower()
@@ -522,6 +617,28 @@ class KistlerReportViewer(QMainWindow):
             return None
         return Path(configured)
 
+    def _load_saved_ui_state(self) -> dict:
+        payload = self._load_settings_payload()
+        ui_state = payload.get("ui_state", {}) if payload else {}
+        return ui_state if isinstance(ui_state, dict) else {}
+
+    def on_header_context_menu(self, pos) -> None:
+        header = self.csv_tree.header()
+        menu = QMenu(self)
+
+        for column in range(self.csv_tree.columnCount()):
+            column_name = self.csv_tree.headerItem().text(column)
+            action = menu.addAction(column_name)
+            action.setCheckable(True)
+            action.setChecked(not self.csv_tree.isColumnHidden(column))
+            action.triggered.connect(lambda checked=False, col=column: self._toggle_column_visibility(col))
+
+        menu.exec(header.mapToGlobal(pos))
+
+    def _toggle_column_visibility(self, column: int) -> None:
+        is_hidden = self.csv_tree.isColumnHidden(column)
+        self.csv_tree.setColumnHidden(column, not is_hidden)
+
     def _load_settings_payload(self) -> dict:
         if not self.settings_path.exists():
             return {}
@@ -534,9 +651,33 @@ class KistlerReportViewer(QMainWindow):
         return payload if isinstance(payload, dict) else {}
 
     def _save_settings(self, folder: Path, converter_path: Path) -> None:
-        payload = {
-            "kistler_folder": str(folder),
-            "converter_script": str(converter_path),
+        payload = self._load_settings_payload()
+        payload["kistler_folder"] = str(folder)
+        payload["converter_script"] = str(converter_path)
+        try:
+            self.settings_path.write_text(
+                json.dumps(payload, indent=2),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            self._show_warning(f"Failed to save settings file:\n{exc}")
+
+    def _save_ui_state(self) -> None:
+        payload = self._load_settings_payload()
+        payload["ui_state"] = {
+            "window": {
+                "width": self.width(),
+                "height": self.height(),
+            },
+            "splitter_sizes": self.main_splitter.sizes(),
+            "column_widths": {
+                str(column): self.csv_tree.columnWidth(column)
+                for column in range(self.csv_tree.columnCount())
+            },
+            "column_visibility": {
+                str(column): not self.csv_tree.isColumnHidden(column)
+                for column in range(self.csv_tree.columnCount())
+            },
         }
         try:
             self.settings_path.write_text(
@@ -545,6 +686,10 @@ class KistlerReportViewer(QMainWindow):
             )
         except Exception as exc:
             self._show_warning(f"Failed to save settings file:\n{exc}")
+
+    def closeEvent(self, event) -> None:
+        self._save_ui_state()
+        super().closeEvent(event)
 
     def _show_warning(self, message: str) -> None:
         QMessageBox.warning(self, "Report Viewer", message)

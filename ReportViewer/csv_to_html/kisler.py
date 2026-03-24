@@ -362,139 +362,143 @@ def kv_section_to_table(rows):
 
 
 # ---------------------------------------------------------------------------
-# CHART (Chart.js inline)
+# CHART (inline SVG)
 # ---------------------------------------------------------------------------
 
 def build_chart_html(series, eo_boxes, eo_results, x_unit="mm", y_unit="kN"):
-    """
-    Build the Chart.js canvas + script block.
-    X-axis = X(ABSOLUTE) position (x_unit)
-    Y-axis = Force (y_unit)
-    EO boxes drawn directly in position/force space.
-    """
-    if not series:
-        return "<p><em>No measuring curve data found.</em></p>"
+        """
+        Build a self-contained SVG chart block.
+        X-axis = X(ABSOLUTE) position (x_unit)
+        Y-axis = Force (y_unit)
+        EO boxes drawn directly in position/force space.
+        """
+        data_points = [
+                {"x": p["x"], "y": p["y"]}
+                for p in series
+                if p.get("x") is not None and p.get("y") is not None
+        ]
+        if not data_points:
+                return "<p><em>No measuring curve data found.</em></p>"
 
-    xs = [p["x"] for p in series if p["x"] is not None]
-    ys = [p["y"] for p in series if p["y"] is not None]
+        xs = [p["x"] for p in data_points]
+        ys = [p["y"] for p in data_points]
 
-    data_points = [{"x": p["x"], "y": p["y"]}
-                   for p in series if p["x"] is not None and p["y"] is not None]
-    data_js = str(data_points).replace("'", '"').replace("None", "null")
+        x_min = min(xs)
+        x_max = max(xs)
+        x_pad = (x_max - x_min) * 0.03 or 0.5
+        y_min = min(ys)
+        y_max = max(ys)
+        y_pad = (y_max - y_min) * 0.08 or 0.05
 
-    # Axis ranges with padding
-    x_min = min(xs) if xs else 0
-    x_max = max(xs) if xs else 1
-    x_pad = (x_max - x_min) * 0.03 or 0.5
-    y_min = min(ys) if ys else -0.1
-    y_max = max(ys) if ys else 1
-    y_pad = (y_max - y_min) * 0.08 or 0.05
+        x_min -= x_pad
+        x_max += x_pad
+        y_min -= y_pad
+        y_max += y_pad
 
-    # Build EO box annotations directly in position/force space
-    annotations_js_parts = []
-    band_colors   = ["rgba(255,165,0,0.15)", "rgba(0,128,255,0.15)", "rgba(0,200,100,0.15)"]
-    border_colors = ["rgba(255,140,0,0.9)",  "rgba(0,100,200,0.9)",  "rgba(0,160,80,0.9)"]
+        svg_width = 980
+        svg_height = 420
+        margin_left = 72
+        margin_right = 24
+        margin_top = 18
+        margin_bottom = 56
+        plot_width = svg_width - margin_left - margin_right
+        plot_height = svg_height - margin_top - margin_bottom
 
-    for i, box in enumerate(eo_boxes):
-        xmin = box.get("xmin")
-        xmax = box.get("xmax")
-        ymin = box.get("ymin")
-        ymax = box.get("ymax")
-        if None in (xmin, xmax, ymin, ymax):
-            continue
+        def scale_x(value):
+                if x_max == x_min:
+                        return margin_left + plot_width / 2
+                return margin_left + ((value - x_min) / (x_max - x_min)) * plot_width
 
-        c  = band_colors[i % len(band_colors)]
-        bc = border_colors[i % len(border_colors)]
-        label = box["name"]
-        res = next((r.get("Result", "") for r in eo_results if r.get("EO", "") == label), "")
-        res_text = f"{label} {res}".strip()
+        def scale_y(value):
+                if y_max == y_min:
+                        return margin_top + plot_height / 2
+                return margin_top + plot_height - ((value - y_min) / (y_max - y_min)) * plot_height
 
-        annotations_js_parts.append(f"""
-        '{label}_box': {{
-            type: 'box',
-            xMin: {xmin}, xMax: {xmax},
-            yMin: {ymin}, yMax: {ymax},
-            backgroundColor: '{c}',
-            borderColor: '{bc}',
-            borderWidth: 2,
-            label: {{
-                display: true,
-                content: {repr(res_text)},
-                position: {{ x: 'start', y: 'start' }},
-                font: {{ size: 11, weight: 'bold' }},
-                color: '{bc}'
-            }}
-        }}""")
+        line_points = " ".join(f"{scale_x(p['x']):.2f},{scale_y(p['y']):.2f}" for p in data_points)
 
-    annotations_js = "{" + ",".join(annotations_js_parts) + "}" if annotations_js_parts else "{}"
+        grid_parts = []
+        tick_count = 6
+        for index in range(tick_count + 1):
+                ratio = index / tick_count
+                px = margin_left + plot_width * ratio
+                py = margin_top + plot_height * (1 - ratio)
+                x_val = x_min + (x_max - x_min) * ratio
+                y_val = y_min + (y_max - y_min) * ratio
 
-    html = f"""
+                grid_parts.append(
+                        f'<line x1="{px:.2f}" y1="{margin_top}" x2="{px:.2f}" y2="{margin_top + plot_height}" '
+                        'stroke="#d8dee6" stroke-width="1" />'
+                )
+                grid_parts.append(
+                        f'<text x="{px:.2f}" y="{svg_height - 18}" class="chart-axis-text" text-anchor="middle">{escape(f"{x_val:.4f}")}</text>'
+                )
+
+                grid_parts.append(
+                        f'<line x1="{margin_left}" y1="{py:.2f}" x2="{margin_left + plot_width}" y2="{py:.2f}" '
+                        'stroke="#d8dee6" stroke-width="1" />'
+                )
+                grid_parts.append(
+                        f'<text x="{margin_left - 10}" y="{py + 4:.2f}" class="chart-axis-text" text-anchor="end">{escape(f"{y_val:.5f}")}</text>'
+                )
+
+        band_colors = ["rgba(255,165,0,0.15)", "rgba(0,128,255,0.15)", "rgba(0,200,100,0.15)"]
+        border_colors = ["rgba(255,140,0,0.95)", "rgba(0,100,200,0.95)", "rgba(0,160,80,0.95)"]
+        box_parts = []
+        legend_parts = [
+                '<div class="chart-legend-item"><span class="chart-legend-swatch curve"></span><span>Force vs Position</span></div>'
+        ]
+
+        for index, box in enumerate(eo_boxes):
+                xmin = box.get("xmin")
+                xmax = box.get("xmax")
+                ymin = box.get("ymin")
+                ymax = box.get("ymax")
+                if None in (xmin, xmax, ymin, ymax):
+                        continue
+
+                fill = band_colors[index % len(band_colors)]
+                stroke = border_colors[index % len(border_colors)]
+                left = scale_x(min(xmin, xmax))
+                right = scale_x(max(xmin, xmax))
+                top = scale_y(max(ymin, ymax))
+                bottom = scale_y(min(ymin, ymax))
+                width = max(right - left, 1)
+                height = max(bottom - top, 1)
+
+                label = box.get("name", "")
+                result = next((r.get("Result", "") for r in eo_results if r.get("EO", "") == label), "")
+                box_label = escape(f"{label} {result}".strip())
+
+                box_parts.append(
+                        f'<rect x="{left:.2f}" y="{top:.2f}" width="{width:.2f}" height="{height:.2f}" '
+                        f'fill="{fill}" stroke="{stroke}" stroke-width="2" rx="3" />'
+                )
+                if box_label:
+                        box_parts.append(
+                                f'<text x="{left + 6:.2f}" y="{max(top + 14, margin_top + 14):.2f}" class="chart-box-label" fill="{stroke}">{box_label}</text>'
+                        )
+
+                legend_parts.append(
+                        f'<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:{fill}; border-color:{stroke};"></span><span>{box_label or escape(label)}</span></div>'
+                )
+
+        html = f"""
 <div class="chart-container">
-  <canvas id="measuringCurveChart"></canvas>
+    <div class="chart-legend">{''.join(legend_parts)}</div>
+    <svg class="chart-svg" viewBox="0 0 {svg_width} {svg_height}" preserveAspectRatio="none" role="img" aria-label="Measuring curve chart">
+        <rect x="0" y="0" width="{svg_width}" height="{svg_height}" fill="#ffffff" />
+        <rect x="{margin_left}" y="{margin_top}" width="{plot_width}" height="{plot_height}" fill="#fbfcfe" stroke="#cfd8e3" stroke-width="1" />
+        {''.join(grid_parts)}
+        {''.join(box_parts)}
+        <polyline fill="none" stroke="#007acc" stroke-width="2" points="{line_points}" />
+        <line x1="{margin_left}" y1="{margin_top + plot_height}" x2="{margin_left + plot_width}" y2="{margin_top + plot_height}" stroke="#5b6570" stroke-width="1.4" />
+        <line x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{margin_top + plot_height}" stroke="#5b6570" stroke-width="1.4" />
+        <text x="{margin_left + plot_width / 2:.2f}" y="{svg_height - 4}" class="chart-axis-title" text-anchor="middle">Position ({escape(x_unit)})</text>
+        <text x="18" y="{margin_top + plot_height / 2:.2f}" class="chart-axis-title" text-anchor="middle" transform="rotate(-90 18 {margin_top + plot_height / 2:.2f})">Force ({escape(y_unit)})</text>
+    </svg>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-<script>
-(function() {{
-  const data = {data_js};
-  const ctx = document.getElementById('measuringCurveChart').getContext('2d');
-  const chart = new Chart(ctx, {{
-    type: 'scatter',
-    data: {{
-      datasets: [{{
-        label: 'Force vs Position',
-        data: data,
-        borderColor: 'rgba(0, 122, 204, 1)',
-        backgroundColor: 'rgba(0, 122, 204, 0.5)',
-        pointRadius: 2,
-        pointHoverRadius: 5,
-        showLine: true,
-        fill: false,
-        tension: 0.15,
-        borderWidth: 2,
-      }}]
-    }},
-    options: {{
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: {{ mode: 'index', intersect: false }},
-      plugins: {{
-        legend: {{ display: true, position: 'top' }},
-        tooltip: {{
-          callbacks: {{
-            title: function(items) {{
-              return 'Position = ' + items[0].parsed.x.toFixed(4) + ' {x_unit}';
-            }},
-            label: function(item) {{
-              return 'Force = ' + item.parsed.y.toFixed(5) + ' {y_unit}';
-            }}
-          }}
-        }},
-        annotation: {{
-          annotations: {annotations_js}
-        }}
-      }},
-      scales: {{
-        x: {{
-          type: 'linear',
-          title: {{ display: true, text: 'Position ({x_unit})', font: {{ size: 13 }} }},
-          min: {x_min - x_pad:.4f},
-          max: {x_max + x_pad:.4f},
-          grid: {{ color: 'rgba(200,200,200,0.4)' }}
-        }},
-        y: {{
-          title: {{ display: true, text: 'Force ({y_unit})', font: {{ size: 13 }} }},
-          min: {y_min - y_pad:.5f},
-          max: {y_max + y_pad:.5f},
-          grid: {{ color: 'rgba(200,200,200,0.4)' }}
-        }}
-      }}
-    }}
-  }});
-}})();
-</script>
 """
-    return html
+        return html
 
 
 # ---------------------------------------------------------------------------
@@ -596,6 +600,50 @@ td.nok { color: #721c24; font-weight: bold; }
     position: relative;
     height: 460px;
     padding: 8px 0;
+}
+.chart-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.chart-axis-text {
+    fill: #51606f;
+    font-size: 10px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.chart-axis-title {
+    fill: #22313f;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.chart-box-label {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+.chart-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.chart-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    background: #dbeafe;
+}
+.chart-legend-swatch.curve {
+    background: #007acc;
+    border-color: #007acc;
 }
 
 .two-col {

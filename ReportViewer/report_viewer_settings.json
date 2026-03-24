@@ -1,4 +1,30 @@
 {
   "kistler_folder": "D:\\Work\\Development\\Qt\\HoerbigerDataCollection\\Stations\\KISLER",
-  "converter_script": "D:\\Work\\Development\\Qt\\HoerbigerDataCollection\\ReportViewer\\csv_to_html\\kisler.py"
+  "converter_script": "D:\\Work\\Development\\Qt\\HoerbigerDataCollection\\ReportViewer\\csv_to_html\\kisler.py",
+  "ui_state": {
+    "window": {
+      "width": 1103,
+      "height": 864
+    },
+    "splitter_sizes": [
+      457,
+      1416
+    ],
+    "column_widths": {
+      "0": 133,
+      "1": 54,
+      "2": 62,
+      "3": 85,
+      "4": 135,
+      "5": 0
+    },
+    "column_visibility": {
+      "0": true,
+      "1": true,
+      "2": true,
+      "3": true,
+      "4": true,
+      "5": false
+    }
+  }
 }
