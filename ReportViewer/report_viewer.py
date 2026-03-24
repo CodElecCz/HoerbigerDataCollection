@@ -138,6 +138,7 @@ class KistlerReportViewer(QMainWindow):
         self.settings_path = self.base_dir / "ReportViewer.Settings.json"
         self.saved_ui_state = self._load_saved_ui_state()
         self.ui_state_applied = False
+        self._capture_layout_on_refresh = True
         self._profile_column_widths: dict = {
             int(k): v
             for k, v in self.saved_ui_state.get("column_widths_by_profile", {}).items()
@@ -492,11 +493,16 @@ class KistlerReportViewer(QMainWindow):
         self._profile_column_order[self.active_profile_index] = self._get_column_order()
         profile_index = self._combo_to_profile[index]
         self.active_profile_index = profile_index
-        self._apply_active_profile(refresh=True)
+        self._capture_layout_on_refresh = False
+        try:
+            self._apply_active_profile(refresh=True)
+        finally:
+            self._capture_layout_on_refresh = True
         self._apply_column_order(self._profile_column_order.get(profile_index, []))
         self._apply_column_widths(self._profile_column_widths.get(profile_index, {}))
         self._apply_column_visibility(self._profile_column_visibility.get(profile_index, {}))
         self._save_settings()
+        self._save_ui_state()
         self.statusBar().showMessage(f"Switched to {self.profiles[profile_index]['name']}", 3000)
 
     def on_browse(self) -> None:
@@ -551,6 +557,12 @@ class KistlerReportViewer(QMainWindow):
         self.statusBar().showMessage("Saved section settings.", 5000)
 
     def refresh_csv_list(self) -> None:
+        # Preserve live column layout before clearing/rebuilding the tree.
+        if self._capture_layout_on_refresh and self.csv_tree.columnCount() > 0:
+            self._profile_column_widths[self.active_profile_index] = self._get_column_widths()
+            self._profile_column_visibility[self.active_profile_index] = self._get_column_visibility()
+            self._profile_column_order[self.active_profile_index] = self._get_column_order()
+
         root_text = self.dir_edit.text().strip()
         if not root_text:
             self.csv_tree.clear()
@@ -574,6 +586,9 @@ class KistlerReportViewer(QMainWindow):
         self._populate_tree(root, files)
         self._resize_tree_columns()
         self._apply_saved_widget_sizes()
+        self._apply_column_order(self._profile_column_order.get(self.active_profile_index, []))
+        self._apply_column_widths(self._profile_column_widths.get(self.active_profile_index, {}))
+        self._apply_column_visibility(self._profile_column_visibility.get(self.active_profile_index, {}))
 
         self.apply_filter(self.filter_edit.text())
         self.statusBar().showMessage(f"Found {len(files)} CSV files in {root}", 5000)
@@ -907,6 +922,7 @@ class KistlerReportViewer(QMainWindow):
             self._show_warning(f"Failed to save settings file:\n{exc}")
 
     def closeEvent(self, event) -> None:
+        self._save_settings()
         self._save_ui_state()
         super().closeEvent(event)
 
