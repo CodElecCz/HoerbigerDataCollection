@@ -1,22 +1,22 @@
 {
-  "kistler_folder": "D:\\Work\\Development\\Qt\\HoerbigerDataCollection\\Stations\\KISLER",
+  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/KISLER",
   "converter_name": "KISTLER",
   "converter_script": "built-in:csv_to_html.kisler.convert_file",
   "ui_state": {
     "window": {
-      "width": 1920,
+      "width": 1707,
       "height": 1001
     },
     "splitter_sizes": [
-      477,
-      1396
+      451,
+      1209
     ],
     "column_widths": {
-      "0": 133,
-      "1": 54,
-      "2": 62,
-      "3": 85,
-      "4": 135,
+      "0": 98,
+      "1": 48,
+      "2": 56,
+      "3": 32,
+      "4": 195,
       "5": 0
     },
     "column_visibility": {
@@ -27,5 +27,33 @@
       "4": true,
       "5": false
     }
-  }
+  },
+  "profiles": [
+    {
+      "name": "PRESS",
+      "folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/HMI-PRESS/Reports",
+      "converter_name": "HMI-PRESS"
+    },
+    {
+      "name": "PRESS-KISTLER",
+      "folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/KISLER",
+      "converter_name": "KISTLER"
+    },
+    {
+      "name": "Section 3",
+      "folder": "",
+      "converter_name": "KISTLER"
+    },
+    {
+      "name": "Section 4",
+      "folder": "",
+      "converter_name": "KISTLER"
+    },
+    {
+      "name": "Section 5",
+      "folder": "",
+      "converter_name": "KISTLER"
+    }
+  ],
+  "active_profile_index": 1
 }

@@ -20,6 +20,7 @@ from pathlib import Path
 from converters import AVAILABLE_CONVERTERS, DEFAULT_CONVERTER_NAME
 
 BUILT_IN_CONVERTER_SETTING = "built-in:csv_to_html.kisler.convert_file"
+PROFILE_COUNT = 5
 
 
 def get_app_base_dir() -> Path:
@@ -137,7 +138,10 @@ class KistlerReportViewer(QMainWindow):
         self.settings_path = self.base_dir / "ReportViewer.Settings.json"
         self.saved_ui_state = self._load_saved_ui_state()
         self.ui_state_applied = False
-        self.converter_name = self._load_saved_converter_name()
+        self.profiles = self._load_saved_profiles()
+        self.active_profile_index = self._load_saved_active_profile_index()
+        active_profile = self.profiles[self.active_profile_index]
+        self.converter_name = active_profile["converter_name"]
         self.generated_dir = Path(tempfile.gettempdir()) / "kistler_report_viewer_html"
         self.generated_dir.mkdir(parents=True, exist_ok=True)
 
@@ -176,7 +180,16 @@ class KistlerReportViewer(QMainWindow):
         viewer = QWidget(self)
         layout = QVBoxLayout(viewer)
 
+        top_row = QHBoxLayout()
+        top_row.addWidget(QLabel("Section:"))
+        self.viewer_profile_combo = QComboBox()
+        self.viewer_profile_combo.currentIndexChanged.connect(self.on_viewer_profile_changed)
+        top_row.addWidget(self.viewer_profile_combo, 0)
+        top_row.addWidget(QLabel("Folder:"))
         self.dir_edit = QLineEdit()
+        self.dir_edit.setReadOnly(True)
+        top_row.addWidget(self.dir_edit, 1)
+        layout.addLayout(top_row)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -261,36 +274,49 @@ class KistlerReportViewer(QMainWindow):
         settings = QWidget(self)
         layout = QVBoxLayout(settings)
 
-        kistler_group = QGroupBox("KISTLER")
-        group_layout = QVBoxLayout()
+        self.settings_name_edits = []
+        self.settings_dir_edits = []
+        self.settings_converter_combos = []
 
-        folder_row = QHBoxLayout()
-        folder_row.addWidget(QLabel("Folder:"))
+        for idx in range(PROFILE_COUNT):
+            group = QGroupBox(f"Section {idx + 1}")
+            group_layout = QVBoxLayout()
 
-        self.settings_dir_edit = QLineEdit()
-        self.settings_dir_edit.setPlaceholderText("Choose default KISTLER folder path")
-        folder_row.addWidget(self.settings_dir_edit, 1)
+            name_row = QHBoxLayout()
+            name_row.addWidget(QLabel("Name:"))
+            name_edit = QLineEdit()
+            name_edit.setPlaceholderText(f"Section {idx + 1}")
+            name_row.addWidget(name_edit, 1)
+            group_layout.addLayout(name_row)
 
-        settings_browse_btn = QPushButton("Browse...")
-        settings_browse_btn.clicked.connect(self.on_settings_browse)
-        folder_row.addWidget(settings_browse_btn)
+            folder_row = QHBoxLayout()
+            folder_row.addWidget(QLabel("Folder:"))
+            dir_edit = QLineEdit()
+            dir_edit.setPlaceholderText("Choose folder path")
+            folder_row.addWidget(dir_edit, 1)
 
-        save_btn = QPushButton("Save As Default")
+            browse_btn = QPushButton("Browse...")
+            browse_btn.clicked.connect(lambda checked=False, i=idx: self.on_settings_browse(i))
+            folder_row.addWidget(browse_btn)
+            group_layout.addLayout(folder_row)
+
+            converter_row = QHBoxLayout()
+            converter_row.addWidget(QLabel("CSV to HTML:"))
+            converter_combo = QComboBox()
+            converter_combo.addItems(list(AVAILABLE_CONVERTERS.keys()))
+            converter_row.addWidget(converter_combo, 1)
+            group_layout.addLayout(converter_row)
+
+            group.setLayout(group_layout)
+            layout.addWidget(group)
+
+            self.settings_name_edits.append(name_edit)
+            self.settings_dir_edits.append(dir_edit)
+            self.settings_converter_combos.append(converter_combo)
+
+        save_btn = QPushButton("Save Sections")
         save_btn.clicked.connect(self.on_save_settings)
-        folder_row.addWidget(save_btn)
-
-        group_layout.addLayout(folder_row)
-
-        converter_row = QHBoxLayout()
-        converter_row.addWidget(QLabel("CSV to HTML:"))
-        self.settings_converter_combo = QComboBox()
-        self.settings_converter_combo.addItems(list(AVAILABLE_CONVERTERS.keys()))
-        self.settings_converter_combo.setCurrentText(self.converter_name)
-        converter_row.addWidget(self.settings_converter_combo, 1)
-        group_layout.addLayout(converter_row)
-
-        kistler_group.setLayout(group_layout)
-        layout.addWidget(kistler_group)
+        layout.addWidget(save_btn)
 
         hint = QLabel(f"Settings file: {self.settings_path.name}")
         layout.addWidget(hint)
@@ -299,60 +325,169 @@ class KistlerReportViewer(QMainWindow):
         return settings
 
     def _set_initial_directory(self) -> None:
-        saved_dir = self._load_saved_kistler_folder()
-        if saved_dir is not None and saved_dir.exists() and saved_dir.is_dir():
-            initial = saved_dir
-        else:
-            initial = self.default_csv_root if self.default_csv_root.exists() else self.base_dir
-        self._save_settings(initial)
-        self.dir_edit.setText(str(initial))
-        self.settings_dir_edit.setText(str(initial))
-        self.settings_converter_combo.setCurrentText(self.converter_name)
-        self.refresh_csv_list()
+        if not self.profiles:
+            self.profiles = self._default_profiles()
+
+        self._sync_settings_form_with_profiles()
+        self._refresh_viewer_profile_combo()
+        self._apply_active_profile(refresh=True)
+        self._save_settings()
+
+    def _default_profiles(self) -> list[dict[str, str]]:
+        default_folder = self.default_csv_root if self.default_csv_root.exists() else self.base_dir
+        profiles: list[dict[str, str]] = []
+        for idx in range(PROFILE_COUNT):
+            profiles.append(
+                {
+                    "name": f"Section {idx + 1}",
+                    "folder": str(default_folder) if idx == 0 else "",
+                    "converter_name": DEFAULT_CONVERTER_NAME,
+                }
+            )
+        return profiles
+
+    def _sanitize_profile(self, profile: dict, idx: int) -> dict[str, str]:
+        name = str(profile.get("name", "")).strip() or f"Section {idx + 1}"
+        folder = str(profile.get("folder", "")).strip()
+        converter_name = str(profile.get("converter_name", "")).strip()
+        if converter_name not in AVAILABLE_CONVERTERS:
+            converter_name = DEFAULT_CONVERTER_NAME
+        return {
+            "name": name,
+            "folder": folder,
+            "converter_name": converter_name,
+        }
+
+    def _load_saved_profiles(self) -> list[dict[str, str]]:
+        payload = self._load_settings_payload()
+        defaults = self._default_profiles()
+        if not payload:
+            return defaults
+
+        raw_profiles = payload.get("profiles")
+        profiles: list[dict[str, str]] = []
+        if isinstance(raw_profiles, list):
+            for idx, raw_profile in enumerate(raw_profiles[:PROFILE_COUNT]):
+                if isinstance(raw_profile, dict):
+                    profiles.append(self._sanitize_profile(raw_profile, idx))
+
+        if not profiles:
+            # Backward compatibility migration from single-folder settings
+            legacy_folder = str(payload.get("kistler_folder", "")).strip()
+            legacy_converter = str(payload.get("converter_name", "")).strip()
+            if legacy_converter not in AVAILABLE_CONVERTERS:
+                legacy_converter = DEFAULT_CONVERTER_NAME
+            defaults[0] = {
+                "name": "Section 1",
+                "folder": legacy_folder,
+                "converter_name": legacy_converter,
+            }
+            profiles = defaults
+
+        while len(profiles) < PROFILE_COUNT:
+            profiles.append(self._sanitize_profile(defaults[len(profiles)], len(profiles)))
+
+        return profiles
+
+    def _load_saved_active_profile_index(self) -> int:
+        payload = self._load_settings_payload()
+        raw_idx = payload.get("active_profile_index", 0) if payload else 0
+        if isinstance(raw_idx, int) and 0 <= raw_idx < PROFILE_COUNT:
+            return raw_idx
+        return 0
+
+    def _sync_settings_form_with_profiles(self) -> None:
+        for idx in range(PROFILE_COUNT):
+            profile = self.profiles[idx]
+            self.settings_name_edits[idx].setText(profile["name"])
+            self.settings_dir_edits[idx].setText(profile["folder"])
+            self.settings_converter_combos[idx].setCurrentText(profile["converter_name"])
+
+    def _refresh_viewer_profile_combo(self) -> None:
+        self.viewer_profile_combo.blockSignals(True)
+        self.viewer_profile_combo.clear()
+        for profile in self.profiles:
+            self.viewer_profile_combo.addItem(profile["name"])
+        self.viewer_profile_combo.setCurrentIndex(self.active_profile_index)
+        self.viewer_profile_combo.blockSignals(False)
+
+    def _apply_active_profile(self, refresh: bool) -> None:
+        profile = self.profiles[self.active_profile_index]
+        folder = profile["folder"].strip()
+        converter_name = profile["converter_name"]
+
+        self.converter_name = converter_name
+        self.convert_file = self._get_converter_callable(converter_name)
+        self.dir_edit.setText(folder)
+
+        if refresh:
+            self.refresh_csv_list()
+
+    def on_viewer_profile_changed(self, index: int) -> None:
+        if index < 0 or index >= len(self.profiles):
+            return
+        self.active_profile_index = index
+        self._apply_active_profile(refresh=True)
+        self._save_settings()
+        self.statusBar().showMessage(f"Switched to {self.profiles[index]['name']}", 3000)
 
     def on_browse(self) -> None:
         start_dir = self.dir_edit.text().strip() or str(self.base_dir)
         selected = QFileDialog.getExistingDirectory(self, "Select KISTLER CSV Root", start_dir)
         if not selected:
             return
-        self.dir_edit.setText(selected)
-        self.settings_dir_edit.setText(selected)
+        self.profiles[self.active_profile_index]["folder"] = selected
+        self._sync_settings_form_with_profiles()
+        self._apply_active_profile(refresh=False)
+        self._save_settings()
         self.refresh_csv_list()
 
-    def on_settings_browse(self) -> None:
-        start_dir = self.settings_dir_edit.text().strip() or str(self.default_csv_root)
+    def on_settings_browse(self, index: int) -> None:
+        start_dir = self.settings_dir_edits[index].text().strip() or str(self.default_csv_root)
         selected = QFileDialog.getExistingDirectory(self, "Select default KISTLER folder", start_dir)
         if not selected:
             return
-        self.settings_dir_edit.setText(selected)
+        self.settings_dir_edits[index].setText(selected)
 
     def on_save_settings(self) -> None:
-        selected = self.settings_dir_edit.text().strip()
-        if not selected:
-            self._show_warning("Please choose a KISTLER folder in Settings.")
-            return
+        profiles: list[dict[str, str]] = []
+        for idx in range(PROFILE_COUNT):
+            name = self.settings_name_edits[idx].text().strip() or f"Section {idx + 1}"
+            folder = self.settings_dir_edits[idx].text().strip()
+            converter_name = self.settings_converter_combos[idx].currentText().strip()
 
-        selected_path = Path(selected)
-        if not selected_path.exists() or not selected_path.is_dir():
-            self._show_warning(f"Folder does not exist: {selected_path}")
-            return
+            if converter_name not in AVAILABLE_CONVERTERS:
+                self._show_warning(f"Unsupported CSV to HTML converter in {name}: {converter_name}")
+                return
 
-        converter_name = self.settings_converter_combo.currentText().strip()
-        if converter_name not in AVAILABLE_CONVERTERS:
-            self._show_warning(f"Unsupported CSV to HTML converter: {converter_name}")
-            return
+            if folder:
+                selected_path = Path(folder)
+                if not selected_path.exists() or not selected_path.is_dir():
+                    self._show_warning(f"Folder does not exist for {name}: {selected_path}")
+                    return
 
-        self.dir_edit.setText(str(selected_path))
-        self.converter_name = converter_name
-        self.convert_file = self._get_converter_callable(converter_name)
-        self._save_settings(selected_path)
-        self.statusBar().showMessage(f"Saved KISTLER folder setting: {selected_path}", 5000)
-        self.refresh_csv_list()
+            profiles.append(
+                {
+                    "name": name,
+                    "folder": folder,
+                    "converter_name": converter_name,
+                }
+            )
+
+        self.profiles = profiles
+        if self.active_profile_index >= PROFILE_COUNT:
+            self.active_profile_index = 0
+        self._refresh_viewer_profile_combo()
+        self._apply_active_profile(refresh=True)
+        self._save_settings()
+        self.statusBar().showMessage("Saved section settings.", 5000)
 
     def refresh_csv_list(self) -> None:
         root_text = self.dir_edit.text().strip()
         if not root_text:
-            self._show_warning("Please choose a folder first.")
+            self.csv_tree.clear()
+            self.web_view.setHtml("<h3>No folder configured for this section.</h3>")
+            self.statusBar().showMessage("No folder configured for selected section.", 5000)
             return
 
         root = Path(root_text)
@@ -418,6 +553,20 @@ class KistlerReportViewer(QMainWindow):
     def _parse_csv_name_fields(self, csv_path: Path) -> dict[str, str]:
         stem = csv_path.stem
         parts = stem.split("_")
+
+        # PRESS style: PRESS_YYYY-MM-DD_HH-MM-SS_SERIAL_RESULT
+        if len(parts) == 5 and parts[0].upper() == "PRESS":
+            return {
+                "part": parts[0],
+                "station": "PRESS",
+                "program": "",
+                "date_time": f"{parts[1]} {parts[2]}",
+                "date": parts[1],
+                "time": parts[2],
+                "serial": parts[3],
+                "result": parts[4],
+            }
+
         if len(parts) < 7:
             return {
                 "part": "",
@@ -587,31 +736,6 @@ class KistlerReportViewer(QMainWindow):
         filename = f"{csv_path.stem}_{digest}.html"
         return self.generated_dir / filename
 
-    def _load_saved_kistler_folder(self) -> Path | None:
-        payload = self._load_settings_payload()
-        if not payload:
-            return None
-
-        configured = str(payload.get("kistler_folder", "")).strip()
-        if not configured:
-            return None
-        return Path(configured)
-
-    def _load_saved_converter_name(self) -> str:
-        payload = self._load_settings_payload()
-        if not payload:
-            return DEFAULT_CONVERTER_NAME
-
-        configured_name = str(payload.get("converter_name", "")).strip()
-        if configured_name in AVAILABLE_CONVERTERS:
-            return configured_name
-
-        configured_script = str(payload.get("converter_script", "")).strip()
-        if configured_script == BUILT_IN_CONVERTER_SETTING:
-            return DEFAULT_CONVERTER_NAME
-
-        return DEFAULT_CONVERTER_NAME
-
     def _get_converter_callable(self, converter_name: str):
         convert_file = AVAILABLE_CONVERTERS.get(converter_name)
         if convert_file is None:
@@ -651,10 +775,15 @@ class KistlerReportViewer(QMainWindow):
 
         return payload if isinstance(payload, dict) else {}
 
-    def _save_settings(self, folder: Path) -> None:
+    def _save_settings(self) -> None:
         payload = self._load_settings_payload()
-        payload["kistler_folder"] = str(folder)
-        payload["converter_name"] = self.converter_name
+        payload["profiles"] = self.profiles
+        payload["active_profile_index"] = self.active_profile_index
+
+        # Backward-compatible single-profile keys
+        active = self.profiles[self.active_profile_index]
+        payload["kistler_folder"] = active["folder"]
+        payload["converter_name"] = active["converter_name"]
         payload["converter_script"] = BUILT_IN_CONVERTER_SETTING
         try:
             self.settings_path.write_text(

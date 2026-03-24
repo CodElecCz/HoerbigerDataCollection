@@ -7,9 +7,11 @@ To add a new converter:
 """
 
 from csv_to_html.kisler import convert_file as _kistler_convert
+from csv_to_html.press import convert_file as _press_convert
 
 AVAILABLE_CONVERTERS: dict = {
     "KISTLER": _kistler_convert,
+  "HMI-PRESS": _press_convert,
 }
 
 DEFAULT_CONVERTER_NAME: str = "KISTLER"
