@@ -4,12 +4,12 @@
   "converter_script": "built-in:csv_to_html.kisler.convert_file",
   "ui_state": {
     "window": {
-      "width": 1707,
+      "width": 1920,
       "height": 1001
     },
     "splitter_sizes": [
       481,
-      1179
+      1392
     ],
     "column_widths": {
       "0": 137,
