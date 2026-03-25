@@ -1,46 +1,54 @@
 {
-  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/HMI-PRESS/Reports",
-  "converter_name": "HMI-PRESS",
-  "converter_script": "built-in:csv_to_html.kisler.convert_file",
+  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/KISLER",
+  "converter_name": "KISTLER",
+  "converter_script": "built-in:converters.AVAILABLE_CONVERTERS",
   "ui_state": {
     "window": {
       "width": 1920,
       "height": 1001
     },
     "splitter_sizes": [
-      481,
-      1392
+      576,
+      1297
     ],
     "column_widths": {
-      "0": 143,
-      "1": 100,
-      "2": 0,
-      "3": 100,
-      "4": 116,
+      "0": 132,
+      "1": 64,
+      "2": 215,
+      "3": 74,
+      "4": 69,
       "5": 0
     },
     "column_widths_by_profile": {
       "1": {
         "0": 132,
         "1": 64,
-        "2": 120,
+        "2": 215,
         "3": 74,
         "4": 69,
         "5": 0
       },
       "0": {
-        "0": 143,
+        "0": 146,
         "1": 100,
         "2": 0,
         "3": 100,
-        "4": 116,
+        "4": 208,
         "5": 0
+      },
+      "2": {
+        "0": 100,
+        "1": 100,
+        "2": 100,
+        "3": 100,
+        "4": 100,
+        "5": 100
       }
     },
     "column_visibility": {
       "0": true,
       "1": true,
-      "2": false,
+      "2": true,
       "3": true,
       "4": true,
       "5": false
@@ -61,14 +69,22 @@
         "3": true,
         "4": true,
         "5": false
+      },
+      "2": {
+        "0": true,
+        "1": true,
+        "2": true,
+        "3": true,
+        "4": true,
+        "5": true
       }
     },
     "column_order": [
       0,
       1,
-      2,
       3,
       4,
+      2,
       5
     ],
     "column_order_by_profile": {
@@ -81,6 +97,14 @@
         5
       ],
       "0": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "2": [
         0,
         1,
         2,
@@ -102,9 +126,9 @@
       "converter_name": "KISTLER"
     },
     {
-      "name": "Section 3",
-      "folder": "",
-      "converter_name": "KISTLER"
+      "name": "HELIUM",
+      "folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/HMI-HELIUM/Reports",
+      "converter_name": "HMI-HELIUM"
     },
     {
       "name": "Section 4",
@@ -117,5 +141,5 @@
       "converter_name": "KISTLER"
     }
   ],
-  "active_profile_index": 0
+  "active_profile_index": 1
 }

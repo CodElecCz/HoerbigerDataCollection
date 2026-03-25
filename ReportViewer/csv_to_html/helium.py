@@ -466,13 +466,18 @@ def rows_to_html(sections: list[HeliumSection], csv_name: str) -> str:
     chart_html = _build_leakrate_chart_html(series, markers, x_unit, y_unit)
 
     cards: list[str] = []
-    cards.append(_card("Leakrate Time Graph", chart_html, collapsed=False))
 
+    # Keep top section order aligned with HMI-PRESS style cards.
     if header and header.kv_rows:
         cards.append(_card("Header", _render_kv_table(header.kv_rows), collapsed=False))
 
-    if measurement and measurement.kv_rows:
-        cards.append(_card("Measurement", _render_kv_table(measurement.kv_rows), collapsed=False))
+    if conveyor:
+        parts = []
+        if conveyor.kv_rows:
+            parts.append(_render_kv_table(conveyor.kv_rows))
+        for table in conveyor.tables:
+            parts.append(_render_table(table))
+        cards.append(_card("Conveyor", "".join(parts), collapsed=False))
 
     if results:
         parts = []
@@ -482,13 +487,11 @@ def rows_to_html(sections: list[HeliumSection], csv_name: str) -> str:
             parts.append(_render_table(table))
         cards.append(_card("Results", "".join(parts), collapsed=False))
 
-    if conveyor:
-        parts = []
-        if conveyor.kv_rows:
-            parts.append(_render_kv_table(conveyor.kv_rows))
-        for table in conveyor.tables:
-            parts.append(_render_table(table))
-        cards.append(_card("Conveyor", "".join(parts), collapsed=True))
+    # Requested: Measurement and Leakrate sections at the end.
+    if measurement and measurement.kv_rows:
+        cards.append(_card("Measurement", _render_kv_table(measurement.kv_rows), collapsed=True))
+
+    cards.append(_card("Leakrate Time Graph", chart_html, collapsed=True))
 
     if leakrate:
         parts = []

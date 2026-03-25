@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Qt viewer for KISTLER CSV reports.
+Qt viewer for station CSV reports.
 
 Features:
-- Recursively scans a selected KISTLER directory for CSV files
+- Recursively scans a selected station directory for CSV files
 - Lists discovered CSV files with filtering
-- Converts selected CSV to HTML using the built-in csv_to_html.kisler module
+- Converts selected CSV to HTML using built-in station converters
 - Displays generated HTML in an embedded browser
 """
 
@@ -19,8 +19,13 @@ from pathlib import Path
 
 from converters import AVAILABLE_CONVERTERS, DEFAULT_CONVERTER_NAME
 
-BUILT_IN_CONVERTER_SETTING = "built-in:csv_to_html.kisler.convert_file"
+BUILT_IN_CONVERTER_SETTING = "built-in:converters.AVAILABLE_CONVERTERS"
 PROFILE_COUNT = 5
+DEFAULT_STATION_FOLDERS = {
+    "KISTLER": "KISLER",
+    "HMI-HELIUM": "HMI-HELIUM/Reports",
+    "HMI-PRESS": "HMI-PRESS/Reports",
+}
 
 
 def get_app_base_dir() -> Path:
@@ -158,7 +163,7 @@ class KistlerReportViewer(QMainWindow):
         self.active_profile_index = self._load_saved_active_profile_index()
         active_profile = self.profiles[self.active_profile_index]
         self.converter_name = active_profile["converter_name"]
-        self.generated_dir = Path(tempfile.gettempdir()) / "kistler_report_viewer_html"
+        self.generated_dir = Path(tempfile.gettempdir()) / "report_viewer_html"
         self.generated_dir.mkdir(parents=True, exist_ok=True)
 
         try:
@@ -351,7 +356,7 @@ class KistlerReportViewer(QMainWindow):
         self._save_settings()
 
     def _default_profiles(self) -> list[dict[str, str]]:
-        default_folder = self.default_csv_root if self.default_csv_root.exists() else self.base_dir
+        default_folder = self._default_root_for_converter(DEFAULT_CONVERTER_NAME)
         profiles: list[dict[str, str]] = []
         for idx in range(PROFILE_COUNT):
             profiles.append(
@@ -362,6 +367,16 @@ class KistlerReportViewer(QMainWindow):
                 }
             )
         return profiles
+
+    def _default_root_for_converter(self, converter_name: str) -> Path:
+        station_relative = DEFAULT_STATION_FOLDERS.get(converter_name, "")
+        if station_relative:
+            candidate = (self.base_dir.parent / "Stations" / Path(station_relative)).resolve()
+            if candidate.exists():
+                return candidate
+        if self.default_csv_root.exists():
+            return self.default_csv_root
+        return self.base_dir
 
     def _sanitize_profile(self, profile: dict, idx: int) -> dict[str, str]:
         name = str(profile.get("name", "")).strip() or f"Section {idx + 1}"
@@ -507,7 +522,7 @@ class KistlerReportViewer(QMainWindow):
 
     def on_browse(self) -> None:
         start_dir = self.dir_edit.text().strip() or str(self.base_dir)
-        selected = QFileDialog.getExistingDirectory(self, "Select KISTLER CSV Root", start_dir)
+        selected = QFileDialog.getExistingDirectory(self, "Select CSV Root Folder", start_dir)
         if not selected:
             return
         self.profiles[self.active_profile_index]["folder"] = selected
@@ -517,8 +532,11 @@ class KistlerReportViewer(QMainWindow):
         self.refresh_csv_list()
 
     def on_settings_browse(self, index: int) -> None:
-        start_dir = self.settings_dir_edits[index].text().strip() or str(self.default_csv_root)
-        selected = QFileDialog.getExistingDirectory(self, "Select default KISTLER folder", start_dir)
+        converter_name = self.settings_converter_combos[index].currentText().strip()
+        start_dir = self.settings_dir_edits[index].text().strip() or str(
+            self._default_root_for_converter(converter_name)
+        )
+        selected = QFileDialog.getExistingDirectory(self, "Select default station folder", start_dir)
         if not selected:
             return
         self.settings_dir_edits[index].setText(selected)
@@ -637,11 +655,14 @@ class KistlerReportViewer(QMainWindow):
         stem = csv_path.stem
         parts = stem.split("_")
 
-        # PRESS style: PRESS_YYYY-MM-DD_HH-MM-SS_SERIAL_RESULT
-        if len(parts) == 5 and parts[0].upper() == "PRESS":
+        # HMI compact style used by HMI-PRESS and HMI-HELIUM:
+        # <station>_YYYY-MM-DD_HH-MM-SS_SERIAL_RESULT
+        # Examples: PRESS_..., HELIUM_...
+        compact_station = parts[0].upper() if parts else ""
+        if len(parts) == 5 and compact_station in {"PRESS", "HELIUM"}:
             return {
                 "part": parts[0],
-                "station": "PRESS",
+            "station": compact_station,
                 "program": "",
                 "date_time": f"{parts[1]} {parts[2]}",
                 "date": parts[1],

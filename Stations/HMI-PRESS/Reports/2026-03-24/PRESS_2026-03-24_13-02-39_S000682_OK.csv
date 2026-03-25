@@ -1,0 +1,47 @@
+[Header]
+SN;S000682
+SN Date;24.03.2026
+SN Time;12:59:45
+UID;BARCODEREADER
+Test Result;OK
+Test Date;24.03.2026
+Test Time;13:01:52
+Report Date;24.03.2026
+Report Time;13:02:39
+Recipe;[2] - Solenoid Group
+
+[Conveyor]
+PN;400903-29365
+SN;123456-1
+Result;1
+$Table
+Station;Result;
+;;
+1-press;0;
+2-ass;0;
+3-press;0;
+4-adj;0;
+5-helium;0;
+6-crimp;0;
+7-eol;0;
+8-hv;0;
+9-laser;0;
+10-pck;0;
+
+[Results]
+$Table
+Name;Value;Min;Max;Result;Elapsed;
+;;;;;[sec];
+Damper Avg;7.500667;7.45;7.55;1;0.0;
+Damper Dev;7.966666E-03;0;0.1;1;0.0;
+Camera Result;0;0;0;0;0.0;
+Press MP-000;0;0;0;0;0.0;
+Press Dev;0;0;0;0;0.0;
+Press MP-001;0;0;0;0;0.0;
+Package Avg;0;0;0;0;0.0;
+Package Dev;0;0;0;0;0.0;
+Press MP-002;0;0;0;0;0.0;
+RAG Avg;0;0;0;0;0.0;
+RAG Dev;0;0;0;0;0.0;
+Press MP-003;0;0;0;0;0.0;
+Press MP-004;0;0;0;0;0.0;
