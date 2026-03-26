@@ -16,6 +16,7 @@ import json
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 from converters import AVAILABLE_CONVERTERS, DEFAULT_CONVERTER_NAME
 
@@ -25,6 +26,7 @@ DEFAULT_STATION_FOLDERS = {
     "KISTLER": "KISLER",
     "HMI-HELIUM": "HMI-HELIUM/Reports",
     "HMI-PRESS": "HMI-PRESS/Reports",
+    "ADJ": "ADJ",
 }
 
 
@@ -44,8 +46,10 @@ def load_qt_bindings():
         from PyQt6 import QtWidgets as qt_widgets
         try:
             from PyQt6 import QtWebEngineWidgets as qt_web
+            from PyQt6 import QtWebEngineCore as qt_web_core
         except Exception:
             qt_web = None
+            qt_web_core = None
     except Exception as pyqt_exc:
         last_error = pyqt_exc
         try:
@@ -54,8 +58,10 @@ def load_qt_bindings():
             from PySide6 import QtWidgets as qt_widgets
             try:
                 from PySide6 import QtWebEngineWidgets as qt_web
+                from PySide6 import QtWebEngineCore as qt_web_core
             except Exception:
                 qt_web = None
+                qt_web_core = None
         except Exception as pyside_exc:
             last_error = pyside_exc
             raise ImportError(
@@ -66,6 +72,7 @@ def load_qt_bindings():
     return {
         "QBrush": qt_gui.QBrush,
         "QColor": qt_gui.QColor,
+        "QDesktopServices": qt_gui.QDesktopServices,
         "Qt": qt_core.Qt,
         "QUrl": qt_core.QUrl,
         "QApplication": qt_widgets.QApplication,
@@ -90,12 +97,14 @@ def load_qt_bindings():
         "QVBoxLayout": qt_widgets.QVBoxLayout,
         "QWidget": qt_widgets.QWidget,
         "QWebEngineView": qt_web.QWebEngineView if qt_web is not None else None,
+        "QWebEnginePage": qt_web_core.QWebEnginePage if qt_web_core is not None else None,
     }
 
 
 QT = load_qt_bindings()
 QBrush = QT["QBrush"]
 QColor = QT["QColor"]
+QDesktopServices = QT["QDesktopServices"]
 Qt = QT["Qt"]
 QUrl = QT["QUrl"]
 QApplication = QT["QApplication"]
@@ -120,6 +129,68 @@ QTreeWidgetItem = QT["QTreeWidgetItem"]
 QVBoxLayout = QT["QVBoxLayout"]
 QWidget = QT["QWidget"]
 QWebEngineView = QT["QWebEngineView"]
+QWebEnginePage = QT["QWebEnginePage"]
+
+
+def extract_measurement_section_csv(csv_path: Path) -> str | None:
+    lines = csv_path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
+    collected: list[str] = []
+    in_measurement = False
+
+    for raw in lines:
+        stripped = raw.strip()
+        if not in_measurement:
+            if stripped.lower() == "[measurement]":
+                in_measurement = True
+                collected.append("[Measurement]")
+            continue
+
+        # A new section marker is a single token like [Results], not a row like [s];[mm2];...
+        if ";" not in stripped and stripped.startswith("[") and stripped.endswith("]") and stripped.lower() != "[measurement]":
+            break
+
+        if stripped:
+            collected.append(raw.strip())
+
+    if not collected:
+        return None
+    return "\n".join(collected) + "\n"
+
+
+def is_export_measurement_url(url_text: str) -> bool:
+    parsed = urlparse(url_text)
+    if parsed.scheme == "reportviewer" and parsed.netloc == "export-measurement":
+        return True
+    if parsed.scheme in {"http", "https"} and parsed.netloc == "reportviewer.local" and parsed.path == "/export-measurement":
+        return True
+    return False
+
+
+def is_copy_measurement_url(url_text: str) -> bool:
+    parsed = urlparse(url_text)
+    if parsed.scheme in {"http", "https"} and parsed.netloc == "reportviewer.local" and parsed.path == "/copy-measurement":
+        return True
+    return False
+
+
+if QWebEnginePage is not None:
+    class ReportWebPage(QWebEnginePage):
+        def __init__(self, export_callback, parent=None) -> None:
+            super().__init__(parent)
+            self._export_callback = export_callback
+
+        def acceptNavigationRequest(self, url, nav_type, is_main_frame):  # noqa: N802
+            if is_export_measurement_url(url.toString()):
+                self._export_callback()
+                return False
+            if is_copy_measurement_url(url.toString()):
+                self._export_callback(copy_only=True)
+                return False
+            return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
+        def javaScriptConsoleMessage(self, level, message, line_number, source_id):  # noqa: N802
+            print(f"[WebConsole] {message} ({source_id}:{line_number})")
+            super().javaScriptConsoleMessage(level, message, line_number, source_id)
 
 
 class KistlerReportViewer(QMainWindow):
@@ -176,6 +247,7 @@ class KistlerReportViewer(QMainWindow):
             )
             raise
 
+        self.current_csv_path: Path | None = None
         self._build_ui()
         self._restore_window_state()
         self._set_initial_directory()
@@ -279,9 +351,13 @@ class KistlerReportViewer(QMainWindow):
 
         if self.uses_webengine:
             self.web_view = QWebEngineView()
+            if QWebEnginePage is not None:
+                self.web_page = ReportWebPage(self.export_current_measurement_csv, self.web_view)
+                self.web_view.setPage(self.web_page)
         else:
             self.web_view = QTextBrowser()
-            self.web_view.setOpenExternalLinks(True)
+            self.web_view.setOpenExternalLinks(False)
+            self.web_view.anchorClicked.connect(self.on_textbrowser_link_clicked)
         splitter.addWidget(self.web_view)
 
         splitter.setStretchFactor(0, 0)
@@ -659,7 +735,7 @@ class KistlerReportViewer(QMainWindow):
         # <station>_YYYY-MM-DD_HH-MM-SS_SERIAL_RESULT
         # Examples: PRESS_..., HELIUM_...
         compact_station = parts[0].upper() if parts else ""
-        if len(parts) == 5 and compact_station in {"PRESS", "HELIUM"}:
+        if len(parts) == 5 and compact_station in {"PRESS", "HELIUM", "ADJ"}:
             return {
                 "part": parts[0],
             "station": compact_station,
@@ -839,6 +915,7 @@ class KistlerReportViewer(QMainWindow):
         try:
             out_path = self._build_output_path(csv_path)
             self.convert_file(csv_path, out_path)
+            self.current_csv_path = csv_path
             if self.uses_webengine:
                 self.web_view.load(QUrl.fromLocalFile(str(out_path)))
             else:
@@ -852,6 +929,47 @@ class KistlerReportViewer(QMainWindow):
         digest = hashlib.sha1(str(csv_path).encode("utf-8")).hexdigest()[:10]
         filename = f"{csv_path.stem}_{digest}.html"
         return self.generated_dir / filename
+
+    def on_textbrowser_link_clicked(self, url) -> None:
+        if is_export_measurement_url(url.toString()):
+            self.export_current_measurement_csv()
+            return
+        if is_copy_measurement_url(url.toString()):
+            self.export_current_measurement_csv(copy_only=True)
+            return
+        QDesktopServices.openUrl(url)
+
+    def export_current_measurement_csv(self, copy_only: bool = False) -> None:
+        csv_path = self.current_csv_path
+        if csv_path is None:
+            current_item = self.csv_tree.currentItem()
+            if current_item is not None:
+                csv_value = current_item.data(0, self.ROLE_PATH)
+                if csv_value:
+                    csv_path = Path(csv_value)
+
+        if csv_path is None or not csv_path.exists():
+            self._show_warning("No active CSV selected for export.")
+            return
+
+        try:
+            measurement_csv = extract_measurement_section_csv(csv_path)
+            if not measurement_csv:
+                self._show_warning("No [Measurement] section found in selected CSV.")
+                return
+
+            if copy_only:
+                QApplication.clipboard().setText(measurement_csv)
+                print(f"[MeasurementCopy] success: copied from {csv_path.name}")
+                self.statusBar().showMessage("Measurement data copied to clipboard.", 5000)
+                return
+
+            output_path = csv_path.with_name(f"{csv_path.stem}_Measurement.csv")
+            output_path.write_text(measurement_csv, encoding="utf-8")
+            self.statusBar().showMessage(f"Measurement exported: {output_path.name}", 5000)
+        except Exception as exc:
+            action = "copy Measurement data" if copy_only else "export Measurement CSV"
+            self._show_error(f"Failed to {action} for\n{csv_path}\n\n{exc}")
 
     def _get_converter_callable(self, converter_name: str):
         convert_file = AVAILABLE_CONVERTERS.get(converter_name)

@@ -1,6 +1,6 @@
 {
-  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/KISLER",
-  "converter_name": "KISTLER",
+  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/HMI-HELIUM/Reports",
+  "converter_name": "HMI-HELIUM",
   "converter_script": "built-in:converters.AVAILABLE_CONVERTERS",
   "ui_state": {
     "window": {
@@ -8,33 +8,33 @@
       "height": 1001
     },
     "splitter_sizes": [
-      576,
-      1297
+      665,
+      1208
     ],
     "column_widths": {
-      "0": 132,
-      "1": 64,
-      "2": 215,
-      "3": 74,
-      "4": 69,
-      "5": 0
+      "0": 100,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 100,
+      "5": 169
     },
     "column_widths_by_profile": {
       "1": {
-        "0": 132,
-        "1": 64,
-        "2": 215,
-        "3": 74,
-        "4": 69,
-        "5": 0
+        "0": 100,
+        "1": 100,
+        "2": 100,
+        "3": 100,
+        "4": 100,
+        "5": 169
       },
       "0": {
-        "0": 146,
+        "0": 100,
         "1": 100,
-        "2": 0,
+        "2": 100,
         "3": 100,
-        "4": 208,
-        "5": 0
+        "4": 100,
+        "5": 169
       },
       "2": {
         "0": 100,
@@ -42,7 +42,15 @@
         "2": 100,
         "3": 100,
         "4": 100,
-        "5": 100
+        "5": 169
+      },
+      "3": {
+        "0": 100,
+        "1": 100,
+        "2": 100,
+        "3": 100,
+        "4": 100,
+        "5": 143
       }
     },
     "column_visibility": {
@@ -51,7 +59,7 @@
       "2": true,
       "3": true,
       "4": true,
-      "5": false
+      "5": true
     },
     "column_visibility_by_profile": {
       "1": {
@@ -60,17 +68,25 @@
         "2": true,
         "3": true,
         "4": true,
-        "5": false
+        "5": true
       },
       "0": {
         "0": true,
         "1": true,
-        "2": false,
+        "2": true,
         "3": true,
         "4": true,
-        "5": false
+        "5": true
       },
       "2": {
+        "0": true,
+        "1": true,
+        "2": true,
+        "3": true,
+        "4": true,
+        "5": true
+      },
+      "3": {
         "0": true,
         "1": true,
         "2": true,
@@ -82,18 +98,18 @@
     "column_order": [
       0,
       1,
+      2,
       3,
       4,
-      2,
       5
     ],
     "column_order_by_profile": {
       "1": [
         0,
         1,
+        2,
         3,
         4,
-        2,
         5
       ],
       "0": [
@@ -105,6 +121,14 @@
         5
       ],
       "2": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "3": [
         0,
         1,
         2,
@@ -131,9 +155,9 @@
       "converter_name": "HMI-HELIUM"
     },
     {
-      "name": "Section 4",
-      "folder": "",
-      "converter_name": "KISTLER"
+      "name": "ADJUSTMENT",
+      "folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/ADJ",
+      "converter_name": "ADJ"
     },
     {
       "name": "Section 5",
@@ -141,5 +165,5 @@
       "converter_name": "KISTLER"
     }
   ],
-  "active_profile_index": 1
+  "active_profile_index": 2
 }

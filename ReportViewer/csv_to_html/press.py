@@ -221,7 +221,7 @@ def _card(title: str, body_html: str, collapsed: bool = False) -> str:
     )
 
 
-def _top_info(sections: list[PressSection], csv_name: str) -> tuple[str, str, str, str]:
+def _top_info(sections: list[PressSection], csv_name: str) -> tuple[str, str, str, str, str, str]:
     header_data = {}
     for s in sections:
         if s.name.lower() == "header":
@@ -234,15 +234,16 @@ def _top_info(sections: list[PressSection], csv_name: str) -> tuple[str, str, st
     dt = f"{header_data.get('Report Date', '')} {header_data.get('Report Time', '')}".strip()
     if not dt:
         dt = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    station_name = header_data.get("Station Name", "") or header_data.get("Station", "") or "HMI-PRESS"
+    recipe_name = recipe or "-"
+    file_report_name = csv_name
 
-    title = f"HMI-PRESS Report - {csv_name}"
-    subtitle = recipe if recipe else "HMI-PRESS CSV report"
-    meta = f"SN: {sn} | Generated: {dt}" if sn else f"Generated: {dt}"
-    return title, subtitle, meta, result
+    title = "Part Protocol Report"
+    return title, station_name, recipe_name, dt, file_report_name, result
 
 
 def rows_to_html(sections: list[PressSection], csv_name: str) -> str:
-    title, subtitle, meta, result = _top_info(sections, csv_name)
+    title, station_name, recipe_name, date_time, file_report_name, result = _top_info(sections, csv_name)
     result_label, badge_class = _normalize_result(result)
     result_class = badge_class if badge_class in {"ok", "nok", "error"} else "unknown"
 
@@ -281,10 +282,14 @@ def rows_to_html(sections: list[PressSection], csv_name: str) -> str:
 <div class=\"page\">
   <div class=\"report-header\">
     <div>
-      <h1>{escape(title)}</h1>
-      <div>{escape(subtitle)}</div>
+    <h1>&#128202; {escape(title)}</h1>
+            <div>Station name: {escape(station_name)}</div>
+            <div>Recipe name: {escape(recipe_name)}</div>
     </div>
-    <div class=\"report-meta\">{escape(meta)}</div>
+        <div class="report-meta">
+            <div>Date time: {escape(date_time)}</div>
+            <div>File report name: {escape(file_report_name)}</div>
+        </div>
   </div>
     <div class=\"result-bar {result_class}\">Result: {escape(result_label or 'UNKNOWN')}</div>
   {''.join(body_parts)}

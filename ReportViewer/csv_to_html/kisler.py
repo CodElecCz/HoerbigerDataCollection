@@ -875,14 +875,20 @@ def build_html(filepath, sections):
     banner_html = f'<div class="result-banner {banner_cls}">Total Result: {escape(total_result)}</div>'
 
     # --- Header ---
+    station_name = "KISLER"
+    recipe_name = prog_name or "-"
+    date_time = f"{date_str} {time_str}".strip() or "-"
+    file_report_name = filename
+
     header_html = f"""<header>
   <div>
-    <h1>&#128202; Kisler maXYmos NC — Part Protocol</h1>
-    <div style="margin-top:6px;opacity:0.9">{escape(prog_name)} (MP #{escape(prog_num)}) &nbsp;|&nbsp; Cycle {escape(cycle)}</div>
+    <h1>&#128202; Part Protocol Report</h1>
+    <div style="margin-top:6px;opacity:0.9">Station name: {escape(station_name)}</div>
+    <div style="margin-top:4px;opacity:0.9">Recipe name: {escape(recipe_name)}</div>
   </div>
   <div class="meta">
-    <div>{escape(date_str)} &nbsp; {escape(time_str)}</div>
-    <div style="margin-top:4px">{escape(filename)}</div>
+    <div>Date time: {escape(date_time)}</div>
+    <div style="margin-top:4px">File report name: {escape(file_report_name)}</div>
   </div>
 </header>"""
 

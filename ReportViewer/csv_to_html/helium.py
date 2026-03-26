@@ -453,10 +453,11 @@ def rows_to_html(sections: list[HeliumSection], csv_name: str) -> str:
     report_date = _header_value(header, "Report Date")
     report_time = _header_value(header, "Report Time")
     gen_dt = f"{report_date} {report_time}".strip() or datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+    station_name = _header_value(header, "Station Name") or _header_value(header, "Station") or "HMI-HELIUM"
+    recipe_name = recipe or "-"
+    file_report_name = csv_name
 
-    title = f"HMI-HELIUM Report - {csv_name}"
-    subtitle = recipe if recipe else "HMI-HELIUM CSV report"
-    meta = f"SN: {sn} | Generated: {gen_dt}" if sn else f"Generated: {gen_dt}"
+    title = "Part Protocol Report"
 
     result_label, badge_class = _normalize_result(test_result)
     result_class = badge_class if badge_class in {"ok", "nok", "error"} else "unknown"
@@ -515,10 +516,14 @@ def rows_to_html(sections: list[HeliumSection], csv_name: str) -> str:
 <div class=\"page\">
   <div class=\"report-header\">
     <div>
-      <h1>{escape(title)}</h1>
-      <div>{escape(subtitle)}</div>
+    <h1>&#128202; {escape(title)}</h1>
+            <div>Station name: {escape(station_name)}</div>
+            <div>Recipe name: {escape(recipe_name)}</div>
     </div>
-    <div class=\"report-meta\">{escape(meta)}</div>
+        <div class="report-meta">
+            <div>Date time: {escape(gen_dt)}</div>
+            <div>File report name: {escape(file_report_name)}</div>
+        </div>
   </div>
   <div class=\"result-bar {result_class}\">Result: {escape(result_label or 'UNKNOWN')}</div>
   {''.join(cards)}
