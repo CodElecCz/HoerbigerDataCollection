@@ -11,7 +11,7 @@ Features:
 
 from __future__ import annotations
 
-APP_VERSION = "v4.1"
+APP_VERSION = "v5.2"
 
 import hashlib
 import json
@@ -29,6 +29,7 @@ DEFAULT_STATION_FOLDERS = {
     "HMI-HELIUM": "HMI-HELIUM/Reports",
     "HMI-PRESS": "HMI-PRESS/Reports",
     "ADJ": "ADJ",
+    "EOL": "EOL/Reports",
 }
 
 
@@ -688,6 +689,7 @@ class KistlerReportViewer(QMainWindow):
             return
 
         self._populate_tree(root, files)
+        self.csv_tree.expandAll()
         self._resize_tree_columns()
         self._apply_saved_widget_sizes()
         self._apply_column_order(self._profile_column_order.get(self.active_profile_index, []))
@@ -745,7 +747,7 @@ class KistlerReportViewer(QMainWindow):
         # <station>_YYYY-MM-DD_HH-MM-SS_SERIAL_RESULT
         # Examples: PRESS_..., HELIUM_...
         compact_station = parts[0].upper() if parts else ""
-        if len(parts) == 5 and compact_station in {"PRESS", "HELIUM", "ADJ"}:
+        if len(parts) == 5 and compact_station in {"PRESS", "HELIUM", "ADJ", "EOL"}:
             return {
                 "part": parts[0],
             "station": compact_station,
