@@ -353,6 +353,9 @@ class KistlerReportViewer(QMainWindow):
 
         refresh_row = QHBoxLayout()
         refresh_row.addStretch(1)
+        save_page_btn = QPushButton("Save Page")
+        save_page_btn.clicked.connect(self.save_current_page)
+        refresh_row.addWidget(save_page_btn)
         refresh_btn = QPushButton("Refresh")
         refresh_btn.clicked.connect(self.refresh_csv_list)
         refresh_row.addWidget(refresh_btn)
@@ -941,6 +944,33 @@ class KistlerReportViewer(QMainWindow):
         digest = hashlib.sha1(str(csv_path).encode("utf-8")).hexdigest()[:10]
         filename = f"{csv_path.stem}_{digest}.html"
         return self.generated_dir / filename
+
+    def _build_saved_page_path(self, csv_path: Path) -> Path:
+        return csv_path.with_suffix(".html")
+
+    def save_current_page(self) -> None:
+        csv_path = self.current_csv_path
+        if csv_path is None:
+            item = self.csv_tree.currentItem()
+            if item is not None:
+                csv_value = item.data(0, self.ROLE_PATH)
+                if csv_value:
+                    csv_path = Path(csv_value)
+
+        if csv_path is None or not csv_path.exists():
+            self._show_warning("No active CSV selected to save page.")
+            print("[SavePage] failed: no active CSV selected")
+            return
+
+        out_path = self._build_saved_page_path(csv_path)
+        print(f"[SavePage] started: csv={csv_path}")
+        try:
+            self.convert_file(csv_path, out_path)
+            print(f"[SavePage] saved: {out_path}")
+            self.statusBar().showMessage(f"Page saved: {out_path.name}", 5000)
+        except Exception as exc:
+            print(f"[SavePage] failed: csv={csv_path} error={exc}")
+            self._show_error(f"Failed to save page for\n{csv_path}\n\n{exc}")
 
     def on_textbrowser_link_clicked(self, url) -> None:
         if is_export_measurement_url(url.toString()):
