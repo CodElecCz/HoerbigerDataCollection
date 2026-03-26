@@ -11,6 +11,8 @@ Features:
 
 from __future__ import annotations
 
+APP_VERSION = "v4.1"
+
 import hashlib
 import json
 import sys
@@ -73,6 +75,10 @@ def load_qt_bindings():
         "QBrush": qt_gui.QBrush,
         "QColor": qt_gui.QColor,
         "QDesktopServices": qt_gui.QDesktopServices,
+        "QFont": qt_gui.QFont,
+        "QIcon": qt_gui.QIcon,
+        "QPainter": qt_gui.QPainter,
+        "QPixmap": qt_gui.QPixmap,
         "Qt": qt_core.Qt,
         "QUrl": qt_core.QUrl,
         "QApplication": qt_widgets.QApplication,
@@ -105,6 +111,10 @@ QT = load_qt_bindings()
 QBrush = QT["QBrush"]
 QColor = QT["QColor"]
 QDesktopServices = QT["QDesktopServices"]
+QFont = QT["QFont"]
+QIcon = QT["QIcon"]
+QPainter = QT["QPainter"]
+QPixmap = QT["QPixmap"]
 Qt = QT["Qt"]
 QUrl = QT["QUrl"]
 QApplication = QT["QApplication"]
@@ -205,7 +215,7 @@ class KistlerReportViewer(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Report Viewer")
+        self.setWindowTitle(f"Report Viewer - {APP_VERSION}")
         self.resize(1400, 850)
         self.uses_webengine = QWebEngineView is not None
 
@@ -1072,10 +1082,26 @@ class KistlerReportViewer(QMainWindow):
         QMessageBox.critical(self, "Report Viewer", message)
 
 
+def _make_emoji_icon(emoji: str = "\U0001F4CA", size: int = 64) -> "QIcon":
+    """Render an emoji character into a QIcon."""
+    px = QPixmap(size, size)
+    px.fill(QColor(0, 0, 0, 0))
+    painter = QPainter(px)
+    font = QFont()
+    font.setPixelSize(int(size * 0.82))
+    painter.setFont(font)
+    painter.drawText(px.rect(), Qt.AlignmentFlag.AlignCenter, emoji)
+    painter.end()
+    return QIcon(px)
+
+
 def main() -> int:
     app = QApplication(sys.argv)
-    app.setApplicationName("Report Viewer")
+    app.setApplicationName(f"Report Viewer - {APP_VERSION}")
+    icon = _make_emoji_icon()
+    app.setWindowIcon(icon)
     window = KistlerReportViewer()
+    window.setWindowIcon(icon)
     window.show()
     return app.exec()
 
