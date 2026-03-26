@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Part Report — Part_PRESS_MP-000_2026-03-24_11-15-46_S000932_OK.csv</title>
+  <style>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 13px;
+    background: #f0f2f5;
+    color: #222;
+}
+.page-wrapper {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 0 16px 40px;
+}
+header {
+    background: linear-gradient(135deg, #1a3a5c 0%, #2d6a9f 100%);
+    color: #fff;
+    padding: 20px 28px;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+header h1 { font-size: 1.4em; letter-spacing: 0.5px; }
+header .meta { font-size: 12px; opacity: 0.85; text-align: right; }
+.result-banner {
+    padding: 10px 28px;
+    font-size: 1.1em;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+.result-banner.ok  { background: #d4edda; color: #155724; border-left: 6px solid #28a745; }
+.result-banner.nok { background: #f8d7da; color: #721c24; border-left: 6px solid #dc3545; }
+.card {
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    margin-top: 16px;
+    overflow: hidden;
+}
+.card-header {
+    background: #2d6a9f;
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.card-header:hover { background: #245a8a; }
+.card-header .toggle-icon { font-size: 16px; transition: transform 0.2s; }
+.card-header.collapsed .toggle-icon { transform: rotate(-90deg); }
+.card-body { padding: 12px 16px; }
+.card-body.hidden { display: none; }
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+}
+th, td {
+    border: 1px solid #dee2e6;
+    padding: 5px 9px;
+    text-align: left;
+    vertical-align: top;
+    word-break: break-word;
+}
+th { background: #e8f0fb; font-weight: 600; white-space: nowrap; }
+tr:nth-child(even) td { background: #f8f9fa; }
+table.kv th { width: 260px; background: #f0f4fa; }
+table.kv td { color: #0056b3; }
+
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+.badge.ok   { background: #28a745; color: #fff; }
+.badge.nok  { background: #dc3545; color: #fff; }
+.badge.none { background: #adb5bd; color: #fff; }
+
+td.ok  { color: #155724; font-weight: bold; }
+td.nok { color: #721c24; font-weight: bold; }
+
+.chart-container {
+    position: relative;
+    height: 460px;
+    padding: 8px 0;
+}
+.chart-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+.chart-axis-text {
+    fill: #51606f;
+    font-size: 10px;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.chart-axis-title {
+    fill: #22313f;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.chart-box-label {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+    font-size: 12px;
+}
+.chart-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.chart-legend-swatch {
+    width: 14px;
+    height: 14px;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    background: #dbeafe;
+}
+.chart-legend-swatch.curve {
+    background: #007acc;
+    border-color: #007acc;
+}
+
+.two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+@media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+.eo-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 4px 0;
+}
+.eo-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 8px 14px;
+    min-width: 200px;
+    flex: 1 1 200px;
+    background: #fafbfc;
+}
+.eo-card.ok  { border-left: 4px solid #28a745; }
+.eo-card.nok { border-left: 4px solid #dc3545; }
+.eo-card.none { border-left: 4px solid #adb5bd; }
+.eo-card h3 { font-size: 12px; margin-bottom: 6px; }
+.eo-card .kv-item { display: flex; justify-content: space-between; font-size: 11px; padding: 1px 0; }
+.eo-card .kv-item span:last-child { font-weight: bold; color: #333; }
+
+.seq-editor { display: flex; flex-direction: column; gap: 3px; padding: 4px 0; }
+.seq-group {
+    margin-top: 10px;
+    margin-bottom: 2px;
+}
+.seq-group-name {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #2d6a9f;
+    border-bottom: 2px solid #2d6a9f;
+    padding-bottom: 2px;
+    display: inline-block;
+}
+.seq-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #f8f9fa;
+    border-left: 3px solid #dee2e6;
+    font-size: 12px;
+    flex-wrap: wrap;
+}
+.seq-step:hover { background: #eef4fb; }
+.seq-num {
+    font-size: 10px;
+    color: #aaa;
+    min-width: 18px;
+    text-align: right;
+    flex-shrink: 0;
+}
+.seq-icon { font-size: 14px; flex-shrink: 0; }
+.seq-type { font-weight: 600; min-width: 110px; color: #1a3a5c; flex-shrink: 0; }
+.seq-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.seq-pill {
+    background: #e8f0fb;
+    border: 1px solid #c8d8f0;
+    border-radius: 3px;
+    padding: 1px 6px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+.seq-key { color: #555; margin-right: 3px; }
+.seq-key::after { content: ':'; }
+.seq-unit { color: #888; font-size: 10px; margin-left: 1px; }
+/* Per-type left-border colors */
+.seq-motion        { border-left-color: #0078d4; }
+.seq-home_position { border-left-color: #6f42c1; }
+.seq-measure       { border-left-color: #28a745; background: #f0faf3; }
+.seq-output        { border-left-color: #fd7e14; }
+.seq-input         { border-left-color: #20c997; }
+.seq-timer         { border-left-color: #ffc107; }
+.seq-end           { border-left-color: #dc3545; background: #fff5f5; }
+.seq-label         { border-left-color: #adb5bd; background: #f8f9fa; font-style: italic; }
+
+  </style>
+</head>
+<body>
+<div class="page-wrapper">
+<header>
+  <div>
+    <h1>&#128202; Part Protocol Report</h1>
+    <div style="margin-top:6px;opacity:0.9">Station name: KISLER</div>
+    <div style="margin-top:4px;opacity:0.9">Recipe name: GVC10 Solenoid group</div>
+  </div>
+  <div class="meta">
+    <div>Date time: 2026/03/24 11:15:46 UTC+01:00</div>
+    <div style="margin-top:4px">File report name: Part_PRESS_MP-000_2026-03-24_11-15-46_S000932_OK.csv</div>
+  </div>
+</header><div class="result-banner ok">Total Result: OK</div>
+<div class="card">
+  <div class="card-header">
+    <span>📋 Result Information</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body">
+    <table class="kv">
+<tr><th>Date</th><td>2026/03/24</td></tr>
+<tr><th>Time</th><td>11:15:46 &nbsp; UTC+01:00</td></tr>
+<tr><th>Cycle number</th><td>648</td></tr>
+<tr><th>Total result</th><td>OK</td></tr>
+<tr><th>Triggered switch signals</th><td></td></tr>
+<tr><th>Part serial number</th><td>S000932</td></tr>
+<tr><th>Measuring program name</th><td>GVC10 Solenoid group</td></tr>
+<tr><th>Measuring program number</th><td>0</td></tr>
+<tr><th>Zero X offset</th><td>0.00 &nbsp; mm</td></tr>
+<tr><th>Tara Y offset</th><td>0.26 &nbsp; kN</td></tr>
+</table>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">
+    <span>📈 Measuring Curve</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body">
+    <p style="font-size:11px;color:#666;margin-bottom:8px">Number of data points: <strong>115</strong></p>
+<div class="chart-container">
+    <div class="chart-legend"><div class="chart-legend-item"><span class="chart-legend-swatch curve"></span><span>Force vs Position</span></div><div class="chart-legend-item"><span class="chart-legend-swatch" style="background:rgba(255,165,0,0.15); border-color:rgba(255,140,0,0.95);"></span><span>EO-01 OK</span></div></div>
+    <svg class="chart-svg" viewBox="0 0 980 420" preserveAspectRatio="none" role="img" aria-label="Measuring curve chart">
+        <rect x="0" y="0" width="980" height="420" fill="#ffffff" />
+        <rect x="72" y="18" width="884" height="346" fill="#fbfcfe" stroke="#cfd8e3" stroke-width="1" />
+        <line x1="72.00" y1="18" x2="72.00" y2="364" stroke="#d8dee6" stroke-width="1" /><text x="72.00" y="402" class="chart-axis-text" text-anchor="middle">68.8753</text><line x1="72" y1="364.00" x2="956" y2="364.00" stroke="#d8dee6" stroke-width="1" /><text x="62" y="368.00" class="chart-axis-text" text-anchor="end">-0.23604</text><line x1="219.33" y1="18" x2="219.33" y2="364" stroke="#d8dee6" stroke-width="1" /><text x="219.33" y="402" class="chart-axis-text" text-anchor="middle">69.7612</text><line x1="72" y1="306.33" x2="956" y2="306.33" stroke="#d8dee6" stroke-width="1" /><text x="62" y="310.33" class="chart-axis-text" text-anchor="end">0.28746</text><line x1="366.67" y1="18" x2="366.67" y2="364" stroke="#d8dee6" stroke-width="1" /><text x="366.67" y="402" class="chart-axis-text" text-anchor="middle">70.6471</text><line x1="72" y1="248.67" x2="956" y2="248.67" stroke="#d8dee6" stroke-width="1" /><text x="62" y="252.67" class="chart-axis-text" text-anchor="end">0.81095</text><line x1="514.00" y1="18" x2="514.00" y2="364" stroke="#d8dee6" stroke-width="1" /><text x="514.00" y="402" class="chart-axis-text" text-anchor="middle">71.5331</text><line x1="72" y1="191.00" x2="956" y2="191.00" stroke="#d8dee6" stroke-width="1" /><text x="62" y="195.00" class="chart-axis-text" text-anchor="end">1.33445</text><line x1="661.33" y1="18" x2="661.33" y2="364" stroke="#d8dee6" stroke-width="1" /><text x="661.33" y="402" class="chart-axis-text" text-anchor="middle">72.4190</text><line x1="72" y1="133.33" x2="956" y2="133.33" stroke="#d8dee6" stroke-width="1" /><text x="62" y="137.33" class="chart-axis-text" text-anchor="end">1.85795</text><line x1="808.67" y1="18" x2="808.67" y2="364" stroke="#d8dee6" stroke-width="1" /><text x="808.67" y="402" class="chart-axis-text" text-anchor="middle">73.3049</text><line x1="72" y1="75.67" x2="956" y2="75.67" stroke="#d8dee6" stroke-width="1" /><text x="62" y="79.67" class="chart-axis-text" text-anchor="end">2.38144</text><line x1="956.00" y1="18" x2="956.00" y2="364" stroke="#d8dee6" stroke-width="1" /><text x="956.00" y="402" class="chart-axis-text" text-anchor="middle">74.1908</text><line x1="72" y1="18.00" x2="956" y2="18.00" stroke="#d8dee6" stroke-width="1" /><text x="62" y="22.00" class="chart-axis-text" text-anchor="end">2.90494</text>
+        <rect x="841.11" y="-322.94" width="99.78" height="716.02" fill="rgba(255,165,0,0.15)" stroke="rgba(255,140,0,0.95)" stroke-width="2" rx="3" /><text x="847.11" y="32.00" class="chart-box-label" fill="rgba(255,140,0,0.95)">EO-01 OK</text>
+        <polyline fill="none" stroke="#007acc" stroke-width="2" points="97.02,338.07 105.33,337.41 113.65,337.75 121.96,337.76 130.28,338.43 138.59,338.41 145.25,340.14 146.91,337.16 155.23,338.15 163.54,338.97 170.72,327.68 179.04,319.25 181.35,308.12 182.75,296.87 184.38,285.42 186.39,274.36 188.05,263.22 189.23,251.67 190.23,240.60 191.40,229.38 193.33,218.32 196.35,207.26 197.90,196.10 200.03,184.67 202.64,173.46 206.88,162.37 215.19,154.50 223.51,149.29 231.82,151.87 240.14,153.77 248.45,157.36 256.77,155.32 265.09,152.74 273.40,148.90 281.72,147.59 290.03,145.44 298.35,139.79 306.66,134.57 314.98,126.45 323.29,121.89 331.61,111.83 339.92,102.45 348.24,97.88 356.55,93.00 364.87,91.18 372.97,80.09 381.28,71.12 389.60,65.78 397.91,62.02 406.23,60.22 414.54,51.63 422.86,49.28 431.17,48.04 439.49,49.18 447.80,48.07 456.12,44.78 464.43,44.16 471.60,41.86 472.75,46.97 481.06,47.72 489.38,46.96 497.69,49.45 506.01,53.44 514.32,55.09 522.64,55.84 530.95,54.73 539.27,55.13 547.58,55.72 555.90,55.15 564.22,53.84 572.53,53.50 580.85,50.83 589.16,52.74 597.48,50.04 605.79,50.95 614.11,52.08 622.42,52.74 630.74,50.68 639.05,52.85 647.37,52.16 655.68,53.88 664.00,52.57 672.31,54.68 680.63,53.94 688.94,57.60 697.26,54.26 705.57,55.91 713.89,54.04 722.20,56.42 730.52,54.09 738.83,61.93 747.15,59.70 755.46,62.52 763.78,58.50 772.09,59.74 780.41,58.23 788.73,60.92 797.04,55.69 805.36,56.26 813.67,54.89 821.99,59.36 830.30,56.66 834.11,67.96 842.42,69.79 850.74,68.46 859.05,72.21 867.37,71.13 875.69,73.95 884.00,72.12 892.32,75.24 900.63,71.38 908.95,75.55 917.26,76.20 925.58,77.86 930.98,79.74" />
+        <line x1="72" y1="364" x2="956" y2="364" stroke="#5b6570" stroke-width="1.4" />
+        <line x1="72" y1="18" x2="72" y2="364" stroke="#5b6570" stroke-width="1.4" />
+        <text x="514.00" y="416" class="chart-axis-title" text-anchor="middle">Position (mm)</text>
+        <text x="18" y="191.00" class="chart-axis-title" text-anchor="middle" transform="rotate(-90 18 191.00)">Force (kN)</text>
+    </svg>
+</div>
+
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">
+    <span>🎯 Evaluation Objects — Results</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body">
+    <div class="eo-grid"><div class="eo-card ok"><h3>EO-01 — <span class="badge ok">OK</span></h3><div class="kv-item"><span>Entry</span><span>2.44</span></div><div class="kv-item"><span>XMAX-X</span><span>74.04</span></div><div class="kv-item"><span>XMAX-Y</span><span>2.34</span></div><div class="kv-item"><span>YMIN-Y</span><span>2.34</span></div><div class="kv-item"><span>YMIN-X</span><span>74.04</span></div><div class="kv-item"><span>YMAX-Y</span><span>2.45</span></div><div class="kv-item"><span>YMAX-X</span><span>73.56</span></div></div><div class="eo-card none"><h3>EO-02 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-03 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-04 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-05 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-06 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-07 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-08 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-09 — <span class="badge none">—</span></h3></div><div class="eo-card none"><h3>EO-10 — <span class="badge none">—</span></h3></div></div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header">
+    <span>📊 Process Values — Curve Related</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body">
+    <table>
+<tr>
+<td>Block X</td>
+<td>74.04</td>
+<td>mm</td>
+<td>XMIN-X</td>
+<td>68.98</td>
+<td>mm</td>
+<td>Block X</td>
+<td>0.00</td>
+<td>mm</td>
+<td>XMIN-X</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+<tr>
+<td>Block Y</td>
+<td>2.34</td>
+<td>kN</td>
+<td>XMIN-Y</td>
+<td>-0.01</td>
+<td>kN</td>
+<td>Block Y</td>
+<td>0.00</td>
+<td>mm</td>
+<td>XMIN-Y</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+<tr>
+<td>Ref X</td>
+<td>68.98</td>
+<td>mm</td>
+<td>XMAX-X</td>
+<td>74.04</td>
+<td>mm</td>
+<td>Ref X</td>
+<td>68.98</td>
+<td>mm</td>
+<td>XMAX-X</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+<tr>
+<td>Peak-peak X</td>
+<td>5.06</td>
+<td>mm</td>
+<td>XMAX-Y</td>
+<td>2.34</td>
+<td>kN</td>
+<td>Peak-peak X</td>
+<td>0.00</td>
+<td>mm</td>
+<td>XMAX-Y</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+<tr>
+<td>Peak-peak Y</td>
+<td>2.71</td>
+<td>kN</td>
+<td>YMIN-X</td>
+<td>69.32</td>
+<td>mm</td>
+<td>Peak-peak Y</td>
+<td>0.00</td>
+<td>mm</td>
+<td>YMIN-X</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>YMIN-Y</td>
+<td>-0.02</td>
+<td>kN</td>
+<td></td>
+<td></td>
+<td></td>
+<td>YMIN-Y</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>YMAX-X</td>
+<td>71.28</td>
+<td>mm</td>
+<td></td>
+<td></td>
+<td></td>
+<td>YMAX-X</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td>YMAX-Y</td>
+<td>2.69</td>
+<td>kN</td>
+<td></td>
+<td></td>
+<td></td>
+<td>YMAX-Y</td>
+<td>0.00</td>
+<td>mm</td>
+</tr>
+</table>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header collapsed">
+    <span>⚙️ Evaluation Objects — Settings</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body hidden">
+    <div class="eo-grid"><div class="eo-card ok"><h3>EO-01 — UNI-BOX <span class="badge ok">OK</span></h3><div class="kv-item"><span>Reaction</span><span>UNI-BOX</span></div><div class="kv-item"><span>X Ref</span><span>ABSOLUTE</span></div><div class="kv-item"><span>Y Ref</span><span>ABSOLUTE</span></div><div class="kv-item"><span>XMin</span><span>73.50</span></div><div class="kv-item"><span>XMax</span><span>74.10</span></div><div class="kv-item"><span>YMin</span><span>-0.50</span></div><div class="kv-item"><span>YMax</span><span>6.00</span></div><div class="kv-item"><span>Entry</span><span>LEFT</span></div><div class="kv-item"><span>Exit</span><span>None</span></div><div class="kv-item"><span>Curve part</span><span>ANY</span></div><div class="kv-item"><span>X-Hysteresis</span><span>0.00</span></div><div class="kv-item"><span>Y-Hysteresis</span><span>0.00</span></div><div class="kv-item"><span>Re-entry ignored</span><span>FALSE</span></div><div class="kv-item"><span>Generate statistics</span><span>TRUE</span></div></div><div class="eo-card none"><h3>EO-02 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-03 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-04 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-05 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-06 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-07 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-08 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-09 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div><div class="eo-card none"><h3>EO-10 — OFF <span class="badge none">—</span></h3><div class="kv-item"><span>Reaction</span><span>OFF</span></div></div></div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header collapsed">
+    <span>🖥️ Device &amp; Servo Information</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body hidden">
+    <div class="two-col"><div><table class="kv">
+<tr><th>Device type</th><td>maXYmos_NC</td></tr>
+<tr><th>Device type number</th><td>5847B0</td></tr>
+<tr><th>Device serial number</th><td>24132NC</td></tr>
+<tr><th>Firmware version</th><td>1.8.10 (re1c268)</td></tr>
+<tr><th>IP Address</th><td>192.168.0.52</td></tr>
+<tr><th>Network name</th><td>Press station</td></tr>
+<tr><th>Profibus address</th><td>10</td></tr>
+<tr><th>Device name</th><td>Press station</td></tr>
+<tr><th>Company name</th><td>HOERBIGER</td></tr>
+<tr><th>Comment</th><td></td></tr>
+</table></div><div><table class="kv">
+<tr><th>Servo version</th><td>n/a &nbsp; Servo max. speed &nbsp; 250.000 &nbsp; mm/s</td></tr>
+<tr><th>Type NC Joining Module</th><td>n/a &nbsp; Range min. &nbsp; 0.00 &nbsp; mm</td></tr>
+<tr><th>Serial number NC j.mod.</th><td>n/a &nbsp; Range max. &nbsp; 200.00 &nbsp; mm</td></tr>
+<tr><th>Brake</th><td>Holding Brake 0.94 Nm &nbsp; Servo reference position &nbsp; 35.00 &nbsp; mm</td></tr>
+<tr><th>Operating mode</th><td>Manual Work &nbsp; Max. jog speed &nbsp; 10.000 &nbsp; mm/s</td></tr>
+<tr><th>Brake test</th><td>Disabled &nbsp; Jog. range min &nbsp; 0.00 &nbsp; mm</td></tr>
+<tr><th>Automatic power</th><td>False &nbsp; Jog. range max &nbsp; 200.00 &nbsp; mm</td></tr>
+</table></div></div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header collapsed">
+    <span>📡 Channel Settings</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body hidden">
+    <div class="two-col"><div><h4 style="margin-bottom:6px">Channel X</h4><table class="kv">
+<tr><th>Use the settings from global setup</th><td>True</td></tr>
+<tr><th>Sensor-X type</th><td>Servo</td></tr>
+<tr><th>Unit</th><td>mm</td></tr>
+<tr><th>Used range from</th><td>35.00 <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Used range to</th><td>200.00 <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Decimal places</th><td>2 (iiiii.ff)</td></tr>
+<tr><th>Sensitivity</th><td>- <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Zero point</th><td>- <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Filter</th><td>500 Hz</td></tr>
+<tr><th>Test point</th><td>0.00 <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Tolerance</th><td>2.00 <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Enable sensor test by dig-input</th><td>TRUE</td></tr>
+<tr><th>Zoom from</th><td>63.50 <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Zoom to</th><td>81.50 <span style='color:#888;font-size:11px'>mm</span></td></tr>
+<tr><th>Master Measurement Enable</th><td>FALSE</td></tr>
+<tr><th>Master Measurement Nominal Position</th><td>0.00 <span style='color:#888;font-size:11px'>mm</span></td></tr>
+</table></div><div><h4 style="margin-bottom:6px">Channel Y</h4><table class="kv">
+<tr><th>Use the settings from global setup</th><td>True</td></tr>
+<tr><th>Sensor-Y type</th><td>Strain Gage</td></tr>
+<tr><th>Unit</th><td>kN</td></tr>
+<tr><th>Used range from</th><td>0.00 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+<tr><th>Used range to</th><td>10.00 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+<tr><th>Decimal places</th><td>2 (iiiii.ff)</td></tr>
+<tr><th>Scaling by</th><td>Calibration Sheet</td></tr>
+<tr><th>Sensitivity</th><td>10.00 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+<tr><th>Zero point</th><td>0.00 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+<tr><th>Invert signal</th><td>FALSE</td></tr>
+<tr><th>Filter</th><td>OFF</td></tr>
+<tr><th>Test point</th><td>0.00 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+<tr><th>Tolerance</th><td>1.00 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+<tr><th>Enable sensor test by dig-input</th><td>FALSE</td></tr>
+<tr><th>Zoom from</th><td>3.80 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+<tr><th>Zoom to</th><td>6.20 <span style='color:#888;font-size:11px'>kN</span></td></tr>
+</table></div></div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header collapsed">
+    <span>🔄 Cycle &amp; Evaluation Settings</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body hidden">
+    <div class="two-col"><div><h4 style="margin-bottom:6px">Cycle Control</h4><table class="kv">
+<tr><th>Use the settings from global setup</th><td>False</td></tr>
+<tr><th>Measuring function</th><td>Y (X)</td></tr>
+<tr><th>Delta-X</th><td>User-Defined &nbsp; 0.0500 &nbsp; mm</td></tr>
+<tr><th>START condition</th><td>Dig-Input</td></tr>
+<tr><th>STOP condition</th><td>Dig-Input</td></tr>
+<tr><th>Cycle time out</th><td>60.000 &nbsp; s</td></tr>
+<tr><th>Turning point LEFT</th><td>NONE</td></tr>
+<tr><th>Turning point RIGHT</th><td>YMAX</td></tr>
+<tr><th>Cut curve at</th><td>NONE</td></tr>
+<tr><th>Gradient Delta X</th><td>-</td></tr>
+<tr><th>Measuring function 2</th><td>Off</td></tr>
+<tr><th>Delta-X</th><td>Automatic</td></tr>
+<tr><th>Turning point LEFT</th><td>NONE</td></tr>
+<tr><th>Turning point RIGHT</th><td>YMAX</td></tr>
+<tr><th>Cut curve at</th><td>NONE</td></tr>
+</table></div><div><h4 style="margin-bottom:6px">Evaluation Settings</h4><table class="kv">
+<tr><th>Capture only first NOK-EO for statistics</th><td>False</td></tr>
+<tr><th>Hysteresis-X</th><td>0.0 &nbsp; %</td></tr>
+<tr><th>Hysteresis-Y</th><td>0.0 &nbsp; %</td></tr>
+</table></div></div>
+  </div>
+</div>
+<div class="card">
+  <div class="card-header collapsed">
+    <span>🔀 Sequence Editor</span>
+    <span class="toggle-icon">&#9660;</span>
+  </div>
+  <div class="card-body hidden">
+    <div class="seq-editor">
+<div class="seq-group"><span class="seq-group-name">▶ Main</span></div>
+<div class="seq-step seq-output"><span class="seq-num">1</span><span class="seq-icon">🔌</span><span class="seq-type">Output</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Value</span>X0XXXXXXXXXX</span></span></div>
+<div class="seq-step seq-motion"><span class="seq-num">2</span><span class="seq-icon">🔵</span><span class="seq-type">Motion</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>67.00 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>10.000 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>0.85 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Tara. position</span>0.00 <span class='seq-unit'>mm</span></span></span></div>
+<div class="seq-step seq-motion"><span class="seq-num">3</span><span class="seq-icon">🔵</span><span class="seq-type">Motion</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>69.00 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>2.000 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>8.00 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Tara. position</span>0.00 <span class='seq-unit'>mm</span></span></span></div>
+<div class="seq-step seq-measure"><span class="seq-num">4</span><span class="seq-icon">📏</span><span class="seq-type">Measure</span><span class="seq-pills"><span class="seq-pill">START</span></span></div>
+<div class="seq-step seq-motion"><span class="seq-num">5</span><span class="seq-icon">🔵</span><span class="seq-type">Motion</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>71.00 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>0.300 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>8.00 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Tara. position</span>0.00 <span class='seq-unit'>mm</span></span></span></div>
+<div class="seq-step seq-motion"><span class="seq-num">6</span><span class="seq-icon">🔵</span><span class="seq-type">Motion</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>72.90 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>0.200 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>8.00 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Tara. position</span>0.00 <span class='seq-unit'>mm</span></span></span></div>
+<div class="seq-step seq-motion"><span class="seq-num">7</span><span class="seq-icon">🔵</span><span class="seq-type">Motion</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>73.50 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>0.100 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>8.00 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Tara. position</span>0.00 <span class='seq-unit'>mm</span></span></span></div>
+<div class="seq-step seq-motion"><span class="seq-num">8</span><span class="seq-icon">🔵</span><span class="seq-type">Motion</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>74.50 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>0.030 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>8.50 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Tara. position</span>0.00 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">Force</span>8.00 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Approach</span>ABSOLUTE_FROM_BELOW</span></span></div>
+<div class="seq-step seq-output"><span class="seq-num">9</span><span class="seq-icon">🔌</span><span class="seq-type">Output</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Value</span>X1XXXXXXXXXX</span></span></div>
+<div class="seq-step seq-measure"><span class="seq-num">10</span><span class="seq-icon">📏</span><span class="seq-type">Measure</span><span class="seq-pills"><span class="seq-pill">STOP</span><span class="seq-pill">Target Result</span></span></div>
+<div class="seq-step seq-motion"><span class="seq-num">11</span><span class="seq-icon">🔵</span><span class="seq-type">Motion</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>70.00 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>4.000 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>9.00 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Tara. position</span>0.00 <span class='seq-unit'>mm</span></span></span></div>
+<div class="seq-step seq-home_position"><span class="seq-num">12</span><span class="seq-icon">🏠</span><span class="seq-type">Home position</span><span class="seq-pills"><span class="seq-pill"><span class="seq-key">Reference</span>ABSOLUTE</span><span class="seq-pill"><span class="seq-key">Position</span>35.00 <span class='seq-unit'>mm</span></span><span class="seq-pill"><span class="seq-key">SPEED</span>10.000 <span class='seq-unit'>mm/s</span></span><span class="seq-pill"><span class="seq-key">Max. force</span>1.00 <span class='seq-unit'>kN</span></span><span class="seq-pill"><span class="seq-key">Min. force</span>-0.50 <span class='seq-unit'>kN</span></span></span></div>
+<div class="seq-step seq-end"><span class="seq-icon">🔚</span><span class="seq-type">Sequence end</span></div>
+<div class="seq-group"><span class="seq-group-name">▶ Sub.1</span></div>
+<div class="seq-group"><span class="seq-group-name">▶ Sub.2</span></div>
+<div class="seq-group"><span class="seq-group-name">▶ Sub.3</span></div>
+</div>
+  </div>
+</div>
+<p style="text-align:center;color:#aaa;margin-top:28px;font-size:11px">
+  Generated by kisler_csv_to_html.py &mdash; 2026/03/24 11:15:46 UTC+01:00
+</p>
+</div>
+<script>
+
+(function() {
+    var PREFIX = 'kistler_card_';
+
+    function cardTitle(hdr) {
+        var s = hdr.querySelector('span');
+        return s ? s.textContent : hdr.textContent;
+    }
+
+    function saveState(title, collapsed) {
+        try { localStorage.setItem(PREFIX + title, collapsed ? '1' : '0'); } catch(e) {}
+    }
+
+    function restoreStates() {
+        document.querySelectorAll('.card-header').forEach(function(hdr) {
+            var saved;
+            try { saved = localStorage.getItem(PREFIX + cardTitle(hdr)); } catch(e) { return; }
+            if (saved === null) return;
+            var body = hdr.nextElementSibling;
+            if (saved === '1') {
+                hdr.classList.add('collapsed');
+                body.classList.add('hidden');
+            } else {
+                hdr.classList.remove('collapsed');
+                body.classList.remove('hidden');
+            }
+        });
+    }
+
+    document.querySelectorAll('.card-header').forEach(function(hdr) {
+        hdr.addEventListener('click', function() {
+            var body = hdr.nextElementSibling;
+            body.classList.toggle('hidden');
+            hdr.classList.toggle('collapsed');
+            saveState(cardTitle(hdr), hdr.classList.contains('collapsed'));
+        });
+    });
+
+    restoreStates();
+})();
+
+</script>
+</body>
+</html>
