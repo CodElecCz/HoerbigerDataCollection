@@ -1,23 +1,23 @@
 {
-  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/ADJ/Reports",
-  "converter_name": "ADJ",
+  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/EOL/Reports",
+  "converter_name": "EOL",
   "converter_script": "built-in:converters.AVAILABLE_CONVERTERS",
   "ui_state": {
     "window": {
-      "width": 1641,
+      "width": 1574,
       "height": 992
     },
     "splitter_sizes": [
-      454,
-      1140
+      421,
+      1106
     ],
     "column_widths": {
-      "0": 141,
+      "0": 100,
       "1": 100,
-      "2": 0,
-      "3": 52,
+      "2": 100,
+      "3": 100,
       "4": 100,
-      "5": 100
+      "5": 124
     },
     "column_widths_by_profile": {
       "1": {
@@ -45,12 +45,12 @@
         "5": 143
       },
       "3": {
-        "0": 141,
+        "0": 100,
         "1": 100,
-        "2": 0,
-        "3": 52,
+        "2": 100,
+        "3": 100,
         "4": 100,
-        "5": 100
+        "5": 143
       },
       "4": {
         "0": 100,
@@ -58,13 +58,13 @@
         "2": 100,
         "3": 100,
         "4": 100,
-        "5": 136
+        "5": 124
       }
     },
     "column_visibility": {
       "0": true,
       "1": true,
-      "2": false,
+      "2": true,
       "3": true,
       "4": true,
       "5": true
@@ -97,7 +97,7 @@
       "3": {
         "0": true,
         "1": true,
-        "2": false,
+        "2": true,
         "3": true,
         "4": true,
         "5": true
@@ -189,5 +189,5 @@
       "converter_name": "EOL"
     }
   ],
-  "active_profile_index": 3
+  "active_profile_index": 4
 }
