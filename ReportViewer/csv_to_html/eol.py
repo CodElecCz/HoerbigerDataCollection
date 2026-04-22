@@ -1153,13 +1153,28 @@ def _render_step_result_row(step: int, headers: list[str], units: list[str], row
     return "".join(html), min_value, max_value, s3_min, s3_max
 
 
-def _render_uv_kv_table(rows: list[tuple[str, list[str]]]) -> str:
-    """Renders kv rows where values are [unit, value] pairs."""
-    html = ["<table>", "<tr><th>Parameter</th><th>Unit</th><th>Value</th></tr>"]
+def _render_uv_kv_table(rows: list[tuple[str, list[str]]], table_class: str = "") -> str:
+    """Renders kv rows as Parameter / Unit / Value."""
+
+    def split_parameter_and_unit(key: str) -> tuple[str, str]:
+        token = key.strip()
+        if token.endswith("]") and "[" in token:
+            start = token.rfind("[")
+            if start >= 0 and start < len(token) - 1:
+                parameter = token[:start].strip()
+                unit = token[start:].strip()
+                return parameter or token, unit
+        return token, ""
+
+    class_attr = f' class="{escape(table_class)}"' if table_class else ""
+    html = [f"<table{class_attr}>", "<tr><th>Parameter</th><th>Unit</th><th>Value</th></tr>"]
     for key, values in rows:
-        unit = values[0] if len(values) > 0 else ""
+        parameter, key_unit = split_parameter_and_unit(key)
+        unit = values[0] if len(values) > 1 else key_unit
         value = values[1] if len(values) > 1 else (values[0] if values else "")
-        html.append(f"<tr><th>{escape(key)}</th><td>{escape(_format_unit_display(unit))}</td><td>{escape(value)}</td></tr>")
+        html.append(
+            f"<tr><th>{escape(parameter)}</th><td>{escape(_format_unit_display(unit))}</td><td>{escape(value)}</td></tr>"
+        )
     html.append("</table>")
     return "".join(html)
 
@@ -1409,7 +1424,7 @@ def rows_to_html(sections: list[EolSection], csv_name: str) -> str:
     if header and header.kv_rows:
         cards.append(_card("Header", _render_header_split_tables(header.kv_rows), collapsed=False))
     if conditions and conditions.kv_rows:
-        cards.append(_card("Conditions", _render_kv_table(conditions.kv_rows), collapsed=True))
+        cards.append(_card("Conditions", _render_uv_kv_table(conditions.kv_rows, table_class="compact-table"), collapsed=True))
     if results and results.tables:
         cards.append(_card("Results", _render_results_table(results.tables[0], header), collapsed=True))
 

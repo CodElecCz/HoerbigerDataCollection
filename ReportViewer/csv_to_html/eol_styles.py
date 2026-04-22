@@ -135,6 +135,12 @@ table.kv-sub td {
     text-align: center;
 }
 
+table.compact-table {
+    width: 50%;
+    min-width: 380px;
+    max-width: 680px;
+}
+
 .header-split {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -143,6 +149,11 @@ table.kv-sub td {
 @media (max-width: 980px) {
     .header-split {
         grid-template-columns: 1fr;
+    }
+
+    table.compact-table {
+        width: 100%;
+        min-width: 0;
     }
 }
 
