@@ -107,13 +107,21 @@ def _parse_sections(rows: list[list[str]]) -> list[EolSection]:
 def _looks_like_units_row(row: list[str]) -> bool:
     if not row or not any(cell.strip() for cell in row):
         return False
+    unit_like = 0
+    data_like = 0
     for cell in row:
         token = cell.strip()
-        if not token:
+        if not token or token == "-":
             continue
-        if not (token.startswith("[") and token.endswith("]")):
-            return False
-    return True
+        # Accept common unit formatting issues from exports (e.g. missing closing ']')
+        if token.startswith("[") or token.endswith("]"):
+            unit_like += 1
+            continue
+        if _parse_float(token) is not None:
+            data_like += 1
+            continue
+        return False
+    return unit_like > 0 and unit_like >= data_like
 
 
 def _is_table_section(name: str) -> bool:
@@ -198,14 +206,124 @@ def _header_value(section: EolSection | None, key: str, default: str = "") -> st
 
 
 def _header_multiline_text(header: str) -> str:
-    parts = header.split()
+    parts = []
+    for part in header.split():
+        lower = part.lower()
+        if lower == "mean":
+            parts.append("[Mean]")
+        elif lower == "stddev":
+            parts.append("[StdDev]")
+        else:
+            parts.append(part)
     if len(parts) <= 1:
-        return escape(header)
+        return escape(parts[0] if parts else header)
     return f"{escape(parts[0])}<br>{escape(' '.join(parts[1:]))}"
+
+
+def _format_unit_display(value: str) -> str:
+    token = value.strip()
+    if not token:
+        return value
+    return token.replace("mm2", "mm²").replace("m3", "m³")
+
+
+def _parse_flow_range_entry(value: str) -> tuple[str, str] | None:
+    token = value.strip()
+    if not token or " - " not in token:
+        return None
+    range_key, mapped_value = token.split(" - ", 1)
+    range_key = range_key.strip()
+    mapped_value = mapped_value.strip()
+    if not range_key or not mapped_value:
+        return None
+    return range_key, mapped_value
+
+
+def _flow_range_key_label(key: str) -> str:
+    base = key.split(" - ", 1)[0].strip()
+    if "[" in base and "]" in base:
+        base = base.split("[", 1)[0].strip()
+    return base
+
+
+def _flow_range_unit_from_key(key: str) -> str:
+    if "[" not in key or "]" not in key:
+        return ""
+    return key[key.find("["):key.find("]") + 1].strip()
+
+
+def _flow_range_cell_value(value: str, unit: str) -> str:
+    token = value.strip()
+    if not token:
+        return "-"
+    return token
+
+
+def _flow_range_unit(header_section: EolSection | None) -> str:
+    if header_section is None:
+        return ""
+    for row_key, _ in header_section.kv_rows:
+        if row_key.lower().strip().startswith("flow range"):
+            return _flow_range_unit_from_key(row_key)
+    return ""
+
+
+def _flow_range_mapping(header_section: EolSection | None) -> dict[str, str]:
+    if header_section is None:
+        return {}
+
+    mapping: dict[str, str] = {}
+    for row_key, values in header_section.kv_rows:
+        if not row_key.lower().strip().startswith("flow range"):
+            continue
+        if " - " in row_key and "/" in row_key and values:
+            base, suffix = row_key.split(" - ", 1)
+            unit = _flow_range_unit_from_key(base)
+            labels = [part.strip() for part in suffix.split("/") if part.strip()]
+            for idx, value in enumerate(values):
+                range_key = labels[idx] if idx < len(labels) else str(idx)
+                mapping[range_key] = _flow_range_cell_value(value, unit)
+            break
+        for value in values:
+            parsed = _parse_flow_range_entry(value)
+            if parsed is None:
+                continue
+            range_key, mapped_value = parsed
+            mapping[range_key] = mapped_value
+        break
+    return mapping
+
+
+def _format_flow_range_value(raw_value: str, header_section: EolSection | None) -> str:
+    token = raw_value.strip()
+    if not token:
+        return raw_value
+    return _flow_range_mapping(header_section).get(token, raw_value)
 
 
 def _render_kv_table(rows: list[tuple[str, list[str]]]) -> str:
     def render_named_subtable(key: str, values: list[str]) -> str:
+        if key.lower().strip().startswith("flow range") and values:
+            headers = []
+            unit_cells = []
+            cells = []
+            unit = _flow_range_unit_from_key(key)
+            labels: list[str] = []
+            if " - " in key and "/" in key:
+                _, suffix = key.split(" - ", 1)
+                labels = [part.strip() for part in suffix.split("/") if part.strip()]
+            for idx, value in enumerate(values):
+                parsed = _parse_flow_range_entry(value)
+                if parsed is not None:
+                    header, cell = parsed
+                else:
+                    header = labels[idx] if idx < len(labels) else str(idx)
+                    cell = _flow_range_cell_value(value, unit)
+                headers.append(f"<th>{escape(header)}</th>")
+                unit_cells.append(f"<td>{escape(_format_unit_display(unit))}</td>")
+                cells.append(f"<td>{escape(cell)}</td>")
+            unit_row = f"<tr>{''.join(unit_cells)}</tr>" if unit else ""
+            return '<table class="kv-sub">' f"<tr>{''.join(headers)}</tr>" f"{unit_row}" f"<tr>{''.join(cells)}</tr>" "</table>"
         if " - " not in key or "/" not in key or len(values) <= 1:
             return ""
         _, suffix = key.split(" - ", 1)
@@ -228,7 +346,7 @@ def _render_kv_table(rows: list[tuple[str, list[str]]]) -> str:
         joined = " / ".join(values) if values else ""
         val_html = _badge_from_value(joined) if key.lower() in {"result", "test result"} else escape(joined)
         is_compound_row = " - " in key and "/" in key and len(values) > 1
-        key_label = key.split(" - ", 1)[0].strip() if is_compound_row else key
+        key_label = _flow_range_key_label(key) if key.lower().strip().startswith("flow range") else (key.split(" - ", 1)[0].strip() if is_compound_row else key)
         if subtable_html:
             val_html = subtable_html
         html.append(f"<tr><th>{escape(key_label)}</th><td>{val_html}</td></tr>")
@@ -258,7 +376,7 @@ def _render_table(table: EolTable) -> str:
         html.append("<tr>")
         for idx in range(len(table.headers)):
             unit = table.units[idx] if idx < len(table.units) else ""
-            html.append(f"<td>{escape(unit)}</td>")
+            html.append(f"<td>{escape(_format_unit_display(unit))}</td>")
         html.append("</tr>")
     for row in table.rows:
         html.append("<tr>")
@@ -267,6 +385,156 @@ def _render_table(table: EolTable) -> str:
             value = row[idx] if idx < len(row) else ""
             html.append(f"<td>{escape(value)}</td>")
         html.append("</tr>")
+    html.append("</table>")
+    return "".join(html)
+
+
+def _render_results_table(table: EolTable, header_section: EolSection | None = None) -> str:
+    def normalize_header(value: str) -> str:
+        return " ".join(value.strip().lower().split())
+
+    lower_headers = [normalize_header(header) for header in table.headers]
+
+    def idx_of(name: str) -> int:
+        target = normalize_header(name)
+        for idx, header in enumerate(lower_headers):
+            if header == target:
+                return idx
+        return -1
+
+    def idx_of_any(*names: str) -> int:
+        for name in names:
+            idx = idx_of(name)
+            if idx >= 0:
+                return idx
+        return -1
+
+    idx_mean = idx_of("Aeff Mean")
+    idx_min = idx_of_any("Limit Min - Aeff Mean", "Aeff Min")
+    idx_max = idx_of_any("Limit Max - Aeff Mean", "Aeff Max")
+    idx_stddev = idx_of("Aeff StdDev")
+    idx_stddev_max = idx_of_any("Limit Max - Aeff StdDev", "Aeff StdDev Max")
+    idx_pressure_out = idx_of("Pressure Out")
+    idx_pressure_s3_mean = idx_of("Pressure S3 Mean")
+    idx_pressure_s3_min = idx_of("Limit Min - Pressure S3 Mean")
+    idx_pressure_s3_max = idx_of("Limit Max - Pressure S3 Mean")
+    idx_pressure_s3_stddev = idx_of("Pressure S3 StdDev")
+    idx_pressure_s3_stddev_max = idx_of("Limit Max - Pressure S3 StdDev")
+    idx_pressure_s4_mean = idx_of("Pressure S4 Mean")
+    idx_pressure_s4_min = idx_of("Limit Min - Pressure S4 Mean")
+    idx_pressure_s4_max = idx_of("Limit Max - Pressure S4 Mean")
+    idx_pressure_s4_stddev = idx_of("Pressure S4 StdDev")
+    idx_pressure_s4_stddev_max = idx_of("Limit Max - Pressure S4 StdDev")
+    idx_flow_range = idx_of("Flow Range")
+
+    limit_col_indices = {idx for idx, header in enumerate(lower_headers) if header.startswith("limit ")}
+    display_indices = [idx for idx in range(len(table.headers)) if idx not in limit_col_indices]
+
+    def value_at(row: list[str], index: int) -> str:
+        if index < 0 or index >= len(row):
+            return ""
+        return row[index]
+
+    def value_at_shifted(row: list[str], index: int) -> str:
+        if idx_flow_range >= 0 and index >= idx_flow_range:
+            return value_at(row, index - 1)
+        return value_at(row, index)
+
+    def parse_num(text: str) -> float | None:
+        return _parse_float(text)
+
+    def score_alignment(row: list[str], getter: callable) -> int:
+        score = 0
+        aeff_min = parse_num(getter(row, idx_min))
+        aeff_max = parse_num(getter(row, idx_max))
+        s3_min = parse_num(getter(row, idx_pressure_s3_min))
+        s3_max = parse_num(getter(row, idx_pressure_s3_max))
+        s4_min = parse_num(getter(row, idx_pressure_s4_min))
+        s4_max = parse_num(getter(row, idx_pressure_s4_max))
+        if aeff_min is not None and aeff_max is not None and aeff_min <= aeff_max:
+            score += 1
+        if s3_min is not None and s3_max is not None and s3_min <= s3_max:
+            score += 1
+        if s4_min is not None and s4_max is not None and s4_min <= s4_max:
+            score += 1
+        return score
+
+    html = ["<table>", "<tr>"]
+    for idx in display_indices:
+        html.append(f"<th>{_header_multiline_text(table.headers[idx])}</th>")
+    html.append("</tr>")
+
+    if table.units:
+        html.append("<tr>")
+        for idx in display_indices:
+            unit = table.units[idx] if idx < len(table.units) else ""
+            if idx == idx_flow_range:
+                unit = _flow_range_unit(header_section) or unit
+            html.append(f"<td>{escape(_format_unit_display(unit))}</td>")
+        html.append("</tr>")
+
+    for row in table.rows:
+        use_shifted = False
+        has_new_limit_headers = min(idx_pressure_s3_min, idx_pressure_s3_max, idx_pressure_s4_min, idx_pressure_s4_max) >= 0
+        if idx_flow_range >= 0 and len(row) == len(table.headers) and has_new_limit_headers:
+            direct_score = score_alignment(row, value_at)
+            shifted_score = score_alignment(row, value_at_shifted)
+            use_shifted = shifted_score > direct_score
+
+        row_get = value_at_shifted if use_shifted else value_at
+
+        def row_num(index: int) -> float | None:
+            return parse_num(row_get(row, index))
+
+        mean_value = row_num(idx_mean)
+        min_value = row_num(idx_min)
+        max_value = row_num(idx_max)
+        stddev_value = row_num(idx_stddev)
+        stddev_max_value = row_num(idx_stddev_max)
+        s3_mean_value = row_num(idx_pressure_s3_mean)
+        s3_min_value = row_num(idx_pressure_s3_min)
+        s3_max_value = row_num(idx_pressure_s3_max)
+        s3_stddev_value = row_num(idx_pressure_s3_stddev)
+        s3_stddev_max_value = row_num(idx_pressure_s3_stddev_max)
+        s4_mean_value = row_num(idx_pressure_s4_mean)
+        s4_min_value = row_num(idx_pressure_s4_min)
+        s4_max_value = row_num(idx_pressure_s4_max)
+        s4_stddev_value = row_num(idx_pressure_s4_stddev)
+        s4_stddev_max_value = row_num(idx_pressure_s4_stddev_max)
+        pressure_out_value = row_num(idx_pressure_out)
+
+        aeff_mean_ok = mean_value is not None and min_value is not None and max_value is not None and min_value <= mean_value <= max_value
+        aeff_stddev_ok = stddev_value is not None and stddev_max_value is not None and stddev_value <= stddev_max_value
+        s3_mean_ok = s3_mean_value is not None and s3_min_value is not None and s3_max_value is not None and s3_min_value <= s3_mean_value <= s3_max_value
+        s3_stddev_ok = s3_stddev_value is not None and s3_stddev_max_value is not None and s3_stddev_value <= s3_stddev_max_value
+        s4_eval_allowed = not (pressure_out_value is not None and pressure_out_value <= 0)
+        s4_mean_ok = s4_eval_allowed and s4_mean_value is not None and s4_min_value is not None and s4_max_value is not None and s4_min_value <= s4_mean_value <= s4_max_value
+        s4_stddev_ok = s4_eval_allowed and s4_stddev_value is not None and s4_stddev_max_value is not None and s4_stddev_value <= s4_stddev_max_value
+
+        class_by_idx: dict[int, str] = {}
+        if min_value is not None and max_value is not None and mean_value is not None:
+            class_by_idx[idx_mean] = "check-ok" if aeff_mean_ok else "check-nok"
+        if stddev_max_value is not None and stddev_value is not None:
+            class_by_idx[idx_stddev] = "check-ok" if aeff_stddev_ok else "check-nok"
+        if s3_min_value is not None and s3_max_value is not None and s3_mean_value is not None:
+            class_by_idx[idx_pressure_s3_mean] = "check-ok" if s3_mean_ok else "check-nok"
+        if s3_stddev_max_value is not None and s3_stddev_value is not None:
+            class_by_idx[idx_pressure_s3_stddev] = "check-ok" if s3_stddev_ok else "check-nok"
+        if s4_eval_allowed and s4_min_value is not None and s4_max_value is not None and s4_mean_value is not None:
+            class_by_idx[idx_pressure_s4_mean] = "check-ok" if s4_mean_ok else "check-nok"
+        if s4_eval_allowed and s4_stddev_max_value is not None and s4_stddev_value is not None:
+            class_by_idx[idx_pressure_s4_stddev] = "check-ok" if s4_stddev_ok else "check-nok"
+
+        html.append("<tr>")
+        for idx in display_indices:
+            value = row_get(row, idx)
+            if idx == idx_flow_range:
+                value = _format_flow_range_value(value, header_section)
+            css_class = class_by_idx.get(idx)
+            class_attr = f' class="{css_class}"' if css_class else ""
+            html.append(f"<td{class_attr}>{escape(value)}</td>")
+        html.append("</tr>")
+
     html.append("</table>")
     return "".join(html)
 
@@ -337,7 +605,16 @@ def _extract_aeff_by_step(measurement: EolSection | None) -> tuple[dict[int, lis
     return by_step, x_unit, y_unit, p3_unit
 
 
-def _build_step_chart(points: list[tuple[float, float, float | None]], x_unit: str, y_unit: str, p3_unit: str) -> str:
+def _build_step_chart(
+    points: list[tuple[float, float, float | None]],
+    x_unit: str,
+    y_unit: str,
+    p3_unit: str,
+    aeff_limit_min: float | None = None,
+    aeff_limit_max: float | None = None,
+    s3_limit_min: float | None = None,
+    s3_limit_max: float | None = None,
+) -> str:
     if not points:
         return "<p><em>No Aeff data for this step.</em></p>"
 
@@ -345,9 +622,26 @@ def _build_step_chart(points: list[tuple[float, float, float | None]], x_unit: s
     all_y = [point[1] for point in points]
     p3_points = [(point[0], point[2]) for point in points if point[2] is not None]
     x_min, x_max = min(all_x), max(all_x)
-    y_min, y_max = min(all_y), max(all_y)
+
+    # Expand y-range to include Aeff limits so limit lines are always visible
+    y_candidates = list(all_y)
+    if aeff_limit_min is not None:
+        y_candidates.append(aeff_limit_min)
+    if aeff_limit_max is not None:
+        y_candidates.append(aeff_limit_max)
+    y_min, y_max = min(y_candidates), max(y_candidates)
+
     p3_min = min((point[1] for point in p3_points), default=None)
     p3_max = max((point[1] for point in p3_points), default=None)
+    # Expand p3 range to include S3 limits
+    if p3_points:
+        p3_candidates = [v for _, v in p3_points]
+        if s3_limit_min is not None:
+            p3_candidates.append(s3_limit_min)
+        if s3_limit_max is not None:
+            p3_candidates.append(s3_limit_max)
+        p3_min = min(p3_candidates)
+        p3_max = max(p3_candidates)
 
     if x_max == x_min:
         x_max = x_min + 1.0
@@ -408,25 +702,69 @@ def _build_step_chart(points: list[tuple[float, float, float | None]], x_unit: s
     if p3_points:
         p3_polyline = f'<polyline fill="none" stroke="#b04f00" stroke-width="1.9" points="{p3_poly}" />'
         right_axis = f'<line x1="{margin_left + plot_width}" y1="{margin_top}" x2="{margin_left + plot_width}" y2="{margin_top + plot_height}" stroke="#5b6570" stroke-width="1.1" />'
-        right_axis_title = f'<text x="{svg_width - 16}" y="{margin_top + plot_height / 2:.2f}" class="axis-title" text-anchor="middle" transform="rotate(90 {svg_width - 16} {margin_top + plot_height / 2:.2f})">Pressure S3 {escape(p3_unit)}</text>'
+        right_axis_title = f'<text x="{svg_width - 16}" y="{margin_top + plot_height / 2:.2f}" class="axis-title" text-anchor="middle" transform="rotate(90 {svg_width - 16} {margin_top + plot_height / 2:.2f})">Pressure S3 {escape(_format_unit_display(p3_unit))}</text>'
+
+    # Aeff limit lines (left axis)
+    aeff_limit_lines: list[str] = []
+    if aeff_limit_min is not None:
+        yp = sy(aeff_limit_min)
+        if margin_top <= yp <= margin_top + plot_height:
+            aeff_limit_lines.append(
+                f'<line x1="{margin_left}" y1="{yp:.2f}" x2="{margin_left + plot_width}" y2="{yp:.2f}" stroke="#0f6cc2" stroke-width="1.5" stroke-dasharray="6 3" />'
+                f'<text x="{margin_left + 4}" y="{yp - 3:.2f}" class="axis-text" fill="#0f6cc2">Min {escape(f"{aeff_limit_min:.3f}")}</text>'
+            )
+    if aeff_limit_max is not None:
+        yp = sy(aeff_limit_max)
+        if margin_top <= yp <= margin_top + plot_height:
+            aeff_limit_lines.append(
+                f'<line x1="{margin_left}" y1="{yp:.2f}" x2="{margin_left + plot_width}" y2="{yp:.2f}" stroke="#0f6cc2" stroke-width="1.5" stroke-dasharray="6 3" />'
+                f'<text x="{margin_left + 4}" y="{yp - 3:.2f}" class="axis-text" fill="#0f6cc2">Max {escape(f"{aeff_limit_max:.3f}")}</text>'
+            )
+
+    # S3 limit lines (right axis)
+    s3_limit_lines: list[str] = []
+    if p3_points and p3_min is not None and p3_max is not None:
+        if s3_limit_min is not None:
+            yp = sy_right(s3_limit_min)
+            if margin_top <= yp <= margin_top + plot_height:
+                s3_limit_lines.append(
+                    f'<line x1="{margin_left}" y1="{yp:.2f}" x2="{margin_left + plot_width}" y2="{yp:.2f}" stroke="#b04f00" stroke-width="1.5" stroke-dasharray="3 4" />'
+                    f'<text x="{margin_left + plot_width - 4}" y="{yp - 3:.2f}" class="axis-text" fill="#b04f00" text-anchor="end">S3 Min {escape(f"{s3_limit_min:.3f}")}</text>'
+                )
+        if s3_limit_max is not None:
+            yp = sy_right(s3_limit_max)
+            if margin_top <= yp <= margin_top + plot_height:
+                s3_limit_lines.append(
+                    f'<line x1="{margin_left}" y1="{yp:.2f}" x2="{margin_left + plot_width}" y2="{yp:.2f}" stroke="#b04f00" stroke-width="1.5" stroke-dasharray="3 4" />'
+                    f'<text x="{margin_left + plot_width - 4}" y="{yp - 3:.2f}" class="axis-text" fill="#b04f00" text-anchor="end">S3 Max {escape(f"{s3_limit_max:.3f}")}</text>'
+                )
+
+    legend_limit_items = ""
+    if aeff_limit_min is not None or aeff_limit_max is not None:
+        legend_limit_items += '<div class="step-legend-item"><span style="display:inline-block;width:18px;height:0;border-top:2px dashed #0f6cc2;vertical-align:middle"></span>&nbsp;<span>Aeff Min/Max</span></div>'
+    if s3_limit_min is not None or s3_limit_max is not None:
+        legend_limit_items += '<div class="step-legend-item"><span style="display:inline-block;width:18px;height:0;border-top:2px dashed #b04f00;vertical-align:middle"></span>&nbsp;<span>S3 Min/Max</span></div>'
 
     return f"""
 <div class="step-chart">
   <div class="step-legend">
     <div class="step-legend-item"><span class="step-legend-swatch aeff"></span><span>Aeff</span></div>
     <div class="step-legend-item"><span class="step-legend-swatch p3"></span><span>Pressure S3 (right axis)</span></div>
+    {legend_limit_items}
   </div>
   <svg viewBox="0 0 {svg_width} {svg_height}" preserveAspectRatio="none" role="img" aria-label="Aeff time chart">
     <rect x="0" y="0" width="{svg_width}" height="{svg_height}" fill="#ffffff" />
     <rect x="{margin_left}" y="{margin_top}" width="{plot_width}" height="{plot_height}" fill="#fbfcfe" stroke="#cfd8e3" stroke-width="1" />
     {''.join(grid_parts)}
+    {''.join(aeff_limit_lines)}
+    {''.join(s3_limit_lines)}
     <polyline fill="none" stroke="#0f6cc2" stroke-width="2" points="{aeff_poly}" />
     {p3_polyline}
     <line x1="{margin_left}" y1="{margin_top + plot_height}" x2="{margin_left + plot_width}" y2="{margin_top + plot_height}" stroke="#5b6570" stroke-width="1.3" />
     <line x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{margin_top + plot_height}" stroke="#5b6570" stroke-width="1.3" />
     {right_axis}
-    <text x="{margin_left + plot_width / 2:.2f}" y="{svg_height - 8}" class="axis-title" text-anchor="middle">Time {escape(x_unit)}</text>
-    <text x="18" y="{margin_top + plot_height / 2:.2f}" class="axis-title" text-anchor="middle" transform="rotate(-90 18 {margin_top + plot_height / 2:.2f})">Aeff {escape(y_unit)}</text>
+    <text x="{margin_left + plot_width / 2:.2f}" y="{svg_height - 8}" class="axis-title" text-anchor="middle">Time {escape(_format_unit_display(x_unit))}</text>
+    <text x="18" y="{margin_top + plot_height / 2:.2f}" class="axis-title" text-anchor="middle" transform="rotate(-90 18 {margin_top + plot_height / 2:.2f})">Aeff {escape(_format_unit_display(y_unit))}</text>
     {right_axis_title}
   </svg>
 </div>
@@ -439,12 +777,22 @@ def _render_step_result_row(step: int, headers: list[str], units: list[str], row
     if row is None:
         return f"<p><em>No [Results] row found for step {step}.</em></p>"
 
-    lower_headers = [header.strip().lower() for header in headers]
+    def normalize_header(value: str) -> str:
+        return " ".join(value.strip().lower().split())
+
+    lower_headers = [normalize_header(header) for header in headers]
 
     def idx_of(name: str) -> int:
-        target = name.strip().lower()
+        target = normalize_header(name)
         for idx, header in enumerate(lower_headers):
             if header == target:
+                return idx
+        return -1
+
+    def idx_of_any(*names: str) -> int:
+        for name in names:
+            idx = idx_of(name)
+            if idx >= 0:
                 return idx
         return -1
 
@@ -456,10 +804,7 @@ def _render_step_result_row(step: int, headers: list[str], units: list[str], row
     def unit_at(index: int) -> str:
         if index < 0 or index >= len(units):
             return ""
-        return units[index]
-
-    def parse_num(index: int) -> float | None:
-        return _parse_float(value_at(index))
+        return _format_unit_display(units[index])
 
     def get_header_value(key: str) -> str:
         """Get a value from the Header section, handling keys with units in brackets."""
@@ -475,15 +820,62 @@ def _render_step_result_row(step: int, headers: list[str], units: list[str], row
                 return values[0] if values else ""
         return ""
 
-    idx_min = idx_of("Aeff Min")
-    idx_max = idx_of("Aeff Max")
+    idx_min = idx_of_any("Limit Min - Aeff Mean", "Aeff Min")
+    idx_max = idx_of_any("Limit Max - Aeff Mean", "Aeff Max")
     idx_mean = idx_of("Aeff Mean")
     idx_stddev = idx_of("Aeff StdDev")
-    idx_stddev_max = idx_of("Aeff StdDev Max")
+    idx_stddev_max = idx_of_any("Limit Max - Aeff StdDev", "Aeff StdDev Max")
     idx_pressure_in = idx_of("Pressure In")
     idx_pressure_s3_mean = idx_of("Pressure S3 Mean")
+    idx_pressure_s3_stddev = idx_of("Pressure S3 StdDev")
     idx_pressure_out = idx_of("Pressure Out")
     idx_pressure_s4_mean = idx_of("Pressure S4 Mean")
+    idx_pressure_s4_stddev = idx_of("Pressure S4 StdDev")
+    idx_pressure_s3_min = idx_of("Limit Min - Pressure S3 Mean")
+    idx_pressure_s3_max = idx_of("Limit Max - Pressure S3 Mean")
+    idx_pressure_s3_stddev_max = idx_of("Limit Max - Pressure S3 StdDev")
+    idx_pressure_s4_min = idx_of("Limit Min - Pressure S4 Mean")
+    idx_pressure_s4_max = idx_of("Limit Max - Pressure S4 Mean")
+    idx_pressure_s4_stddev_max = idx_of("Limit Max - Pressure S4 StdDev")
+    idx_flow_range = idx_of("Flow Range")
+
+    def value_at_shifted(index: int) -> str:
+        # Some EOL exports omit Flow Range in data rows but keep an extra trailing result code.
+        # In that case, columns from Flow Range onward are shifted left by one.
+        if idx_flow_range >= 0 and index >= idx_flow_range:
+            return value_at(index - 1)
+        return value_at(index)
+
+    def _score_limit_alignment(get_value: callable) -> int:
+        score = 0
+        aeff_min = _parse_float(get_value(idx_min))
+        aeff_max = _parse_float(get_value(idx_max))
+        s3_min = _parse_float(get_value(idx_pressure_s3_min))
+        s3_max = _parse_float(get_value(idx_pressure_s3_max))
+        s4_min = _parse_float(get_value(idx_pressure_s4_min))
+        s4_max = _parse_float(get_value(idx_pressure_s4_max))
+        if aeff_min is not None and aeff_max is not None and aeff_min <= aeff_max:
+            score += 1
+        if s3_min is not None and s3_max is not None and s3_min <= s3_max:
+            score += 1
+        if s4_min is not None and s4_max is not None and s4_min <= s4_max:
+            score += 1
+        return score
+
+    use_shifted_limit_columns = False
+    has_new_limit_headers = min(idx_pressure_s3_min, idx_pressure_s3_max, idx_pressure_s4_min, idx_pressure_s4_max) >= 0
+    if idx_flow_range >= 0 and len(row) == len(headers) and has_new_limit_headers:
+        direct_score = _score_limit_alignment(value_at)
+        shifted_score = _score_limit_alignment(value_at_shifted)
+        use_shifted_limit_columns = shifted_score > direct_score
+
+    def value_at_mapped(index: int) -> str:
+        if use_shifted_limit_columns:
+            return value_at_shifted(index)
+        return value_at(index)
+
+    def parse_num(index: int) -> float | None:
+        return _parse_float(value_at_mapped(index))
 
     mean_value = parse_num(idx_mean)
     min_value = parse_num(idx_min)
@@ -498,60 +890,118 @@ def _render_step_result_row(step: int, headers: list[str], units: list[str], row
     pressure_in_dev_str = get_header_value("Pressure In Dev")
     pressure_in_dev_value = _parse_float(pressure_in_dev_str)
     pressure_s3_mean_value = parse_num(idx_pressure_s3_mean)
+    pressure_s3_stddev_value = parse_num(idx_pressure_s3_stddev)
     pressure_out_value = parse_num(idx_pressure_out)
     pressure_out_dev_str = get_header_value("Pressure Out Dev")
     pressure_out_dev_value = _parse_float(pressure_out_dev_str)
     pressure_s4_mean_value = parse_num(idx_pressure_s4_mean)
+    pressure_s4_stddev_value = parse_num(idx_pressure_s4_stddev)
 
-    s3_has_limits = (
+    s3_min_from_results = parse_num(idx_pressure_s3_min)
+    s3_max_from_results = parse_num(idx_pressure_s3_max)
+    s3_stddev_max_from_results = parse_num(idx_pressure_s3_stddev_max)
+    s4_min_from_results = parse_num(idx_pressure_s4_min)
+    s4_max_from_results = parse_num(idx_pressure_s4_max)
+    s4_stddev_max_from_results = parse_num(idx_pressure_s4_stddev_max)
+
+    s3_limits_from_results = (
+        pressure_s3_mean_value is not None
+        and s3_min_from_results is not None
+        and s3_max_from_results is not None
+    )
+    s4_limits_from_results = (
+        pressure_s4_mean_value is not None
+        and s4_min_from_results is not None
+        and s4_max_from_results is not None
+    )
+
+    s3_limits_from_header = (
         pressure_in_value is not None
         and pressure_in_dev_value is not None
         and pressure_s3_mean_value is not None
         and pressure_in_value > 0
     )
-    s4_has_limits = (
+    s4_limits_from_header = (
         pressure_out_value is not None
         and pressure_out_dev_value is not None
         and pressure_s4_mean_value is not None
         and pressure_out_value > 0
     )
 
-    s3_min = (pressure_in_value - pressure_in_dev_value) if s3_has_limits else None
-    s3_max = (pressure_in_value + pressure_in_dev_value) if s3_has_limits else None
-    s4_min = (pressure_out_value - pressure_out_dev_value) if s4_has_limits else None
-    s4_max = (pressure_out_value + pressure_out_dev_value) if s4_has_limits else None
+    s3_has_limits = s3_limits_from_results or s3_limits_from_header
+    s4_eval_allowed = not (pressure_out_value is not None and pressure_out_value <= 0)
+    s4_has_limits = s4_eval_allowed and (s4_limits_from_results or s4_limits_from_header)
+
+    s3_min = s3_min_from_results if s3_limits_from_results else ((pressure_in_value - pressure_in_dev_value) if s3_limits_from_header else None)
+    s3_max = s3_max_from_results if s3_limits_from_results else ((pressure_in_value + pressure_in_dev_value) if s3_limits_from_header else None)
+    s4_min = s4_min_from_results if s4_limits_from_results else ((pressure_out_value - pressure_out_dev_value) if s4_limits_from_header else None)
+    s4_max = s4_max_from_results if s4_limits_from_results else ((pressure_out_value + pressure_out_dev_value) if s4_limits_from_header else None)
 
     s3_ok = s3_has_limits and s3_min is not None and s3_max is not None and s3_min <= pressure_s3_mean_value <= s3_max
     s4_ok = s4_has_limits and s4_min is not None and s4_max is not None and s4_min <= pressure_s4_mean_value <= s4_max
+
+    s3_stddev_has_limit = pressure_s3_stddev_value is not None and s3_stddev_max_from_results is not None
+    s4_stddev_has_limit = s4_eval_allowed and pressure_s4_stddev_value is not None and s4_stddev_max_from_results is not None
+    s3_stddev_ok = s3_stddev_has_limit and pressure_s3_stddev_value <= s3_stddev_max_from_results
+    s4_stddev_ok = s4_stddev_has_limit and pressure_s4_stddev_value <= s4_stddev_max_from_results
 
     mean_result_badge = _badge_from_value("OK" if mean_ok else "NOK")
     stddev_result_badge = _badge_from_value("OK" if stddev_ok else "NOK")
     s3_result_badge = _badge_from_value("OK" if s3_ok else "NOK") if s3_has_limits else _badge_from_value("-")
     s4_result_badge = _badge_from_value("OK" if s4_ok else "NOK") if s4_has_limits else _badge_from_value("-")
+    s3_stddev_result_badge = _badge_from_value("OK" if s3_stddev_ok else "NOK") if s3_stddev_has_limit else _badge_from_value("-")
+    s4_stddev_result_badge = _badge_from_value("OK" if s4_stddev_ok else "NOK") if s4_stddev_has_limit else _badge_from_value("-")
+
+    limit_col_indices = {idx for idx, header in enumerate(lower_headers) if header.startswith("limit ")}
+    display_indices = [idx for idx in range(len(headers)) if idx not in limit_col_indices]
+
+    first_table_class_by_idx: dict[int, str] = {}
+    if mean_value is not None and min_value is not None and max_value is not None:
+        first_table_class_by_idx[idx_mean] = "check-ok" if mean_ok else "check-nok"
+    if stddev_value is not None and stddev_max_value is not None:
+        first_table_class_by_idx[idx_stddev] = "check-ok" if stddev_ok else "check-nok"
+    if pressure_s3_mean_value is not None and s3_min is not None and s3_max is not None:
+        first_table_class_by_idx[idx_pressure_s3_mean] = "check-ok" if s3_ok else "check-nok"
+    if pressure_s3_stddev_value is not None and s3_stddev_max_from_results is not None:
+        first_table_class_by_idx[idx_pressure_s3_stddev] = "check-ok" if s3_stddev_ok else "check-nok"
+    if s4_eval_allowed and pressure_s4_mean_value is not None and s4_min is not None and s4_max is not None:
+        first_table_class_by_idx[idx_pressure_s4_mean] = "check-ok" if s4_ok else "check-nok"
+    if s4_eval_allowed and pressure_s4_stddev_value is not None and s4_stddev_max_from_results is not None:
+        first_table_class_by_idx[idx_pressure_s4_stddev] = "check-ok" if s4_stddev_ok else "check-nok"
 
     html = ['<div class="step-summary">', "<table>", "<tr>"]
-    for header in headers:
+    for idx in display_indices:
+        header = headers[idx]
         html.append(f"<th>{_header_multiline_text(header)}</th>")
     html.append("</tr>")
 
     if units:
         html.append("<tr>")
-        for idx in range(len(headers)):
+        for idx in display_indices:
             unit = units[idx] if idx < len(units) else ""
-            html.append(f"<td>{escape(unit)}</td>")
+            if idx == idx_flow_range:
+                unit = _flow_range_unit(header_section) or unit
+            html.append(f"<td>{escape(_format_unit_display(unit))}</td>")
         html.append("</tr>")
 
     html.append("<tr>")
-    for idx in range(len(headers)):
-        value = row[idx] if idx < len(row) else ""
-        html.append(f"<td>{escape(value)}</td>")
+    for idx in display_indices:
+        value = value_at_mapped(idx)
+        if idx == idx_flow_range:
+            value = _format_flow_range_value(value, header_section)
+        css_class = first_table_class_by_idx.get(idx)
+        class_attr = f' class="{css_class}"' if css_class else ""
+        html.append(f"<td{class_attr}>{escape(value)}</td>")
     html.append("</tr>")
     html.append("</table>")
 
-    html.append('<div class="aeff-checks">')
-    html.append('<table class="aeff-summary">')
-    html.append("<tr><th>Aeff Mean</th><th>Min</th><th>Max</th><th>Result</th></tr>")
-    html.append(
+    mean_col: list[str] = []
+    stddev_col: list[str] = []
+
+    # --- Aeff Mean (left) ---
+    mean_col.append('<table class="aeff-summary">')
+    mean_col.append("<tr><th>Aeff [Mean]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+    mean_col.append(
         "<tr>"
         f"<td>{escape(unit_at(idx_mean))}</td>"
         f"<td>{escape(unit_at(idx_min))}</td>"
@@ -559,19 +1009,20 @@ def _render_step_result_row(step: int, headers: list[str], units: list[str], row
         "<td></td>"
         "</tr>"
     )
-    html.append(
+    mean_col.append(
         "<tr>"
-        f"<td>{escape(value_at(idx_mean))}</td>"
-        f"<td>{escape(value_at(idx_min))}</td>"
-        f"<td>{escape(value_at(idx_max))}</td>"
+        f"<td>{escape(value_at_mapped(idx_mean))}</td>"
+        f"<td>{escape(value_at_mapped(idx_min))}</td>"
+        f"<td>{escape(value_at_mapped(idx_max))}</td>"
         f"<td>{mean_result_badge}</td>"
         "</tr>"
     )
-    html.append("</table>")
+    mean_col.append("</table>")
 
-    html.append('<table class="aeff-summary">')
-    html.append("<tr><th>Aeff StdDev</th><th>Min</th><th>Max</th><th>Result</th></tr>")
-    html.append(
+    # --- Aeff StdDev (right) ---
+    stddev_col.append('<table class="aeff-summary">')
+    stddev_col.append("<tr><th>Aeff [StdDev]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+    stddev_col.append(
         "<tr>"
         f"<td>{escape(unit_at(idx_stddev))}</td>"
         "<td></td>"
@@ -579,63 +1030,124 @@ def _render_step_result_row(step: int, headers: list[str], units: list[str], row
         "<td></td>"
         "</tr>"
     )
-    html.append(
+    stddev_col.append(
         "<tr>"
-        f"<td>{escape(value_at(idx_stddev))}</td>"
+        f"<td>{escape(value_at_mapped(idx_stddev))}</td>"
         "<td>-</td>"
-        f"<td>{escape(value_at(idx_stddev_max))}</td>"
+        f"<td>{escape(value_at_mapped(idx_stddev_max))}</td>"
         f"<td>{stddev_result_badge}</td>"
         "</tr>"
     )
-    html.append("</table>")
+    stddev_col.append("</table>")
 
+    # --- Pressure S3 Mean (left) ---
     if s3_has_limits:
         pressure_unit = unit_at(idx_pressure_s3_mean) or unit_at(idx_pressure_in)
-        html.append('<table class="aeff-summary">')
-        html.append("<tr><th>Pressure S3 Mean</th><th>Min</th><th>Max</th><th>Result</th></tr>")
-        html.append(
+        s3_min_unit = unit_at(idx_pressure_s3_min) or unit_at(idx_pressure_in)
+        s3_max_unit = unit_at(idx_pressure_s3_max) or unit_at(idx_pressure_in)
+        mean_col.append('<table class="aeff-summary">')
+        mean_col.append("<tr><th>Pressure S3 [Mean]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+        mean_col.append(
             "<tr>"
             f"<td>{escape(pressure_unit)}</td>"
-            f"<td>{escape(unit_at(idx_pressure_in))}</td>"
-            f"<td>{escape(unit_at(idx_pressure_in))}</td>"
+            f"<td>{escape(s3_min_unit)}</td>"
+            f"<td>{escape(s3_max_unit)}</td>"
             "<td></td>"
             "</tr>"
         )
-        html.append(
+        mean_col.append(
             "<tr>"
-            f"<td>{escape(value_at(idx_pressure_s3_mean))}</td>"
+            f"<td>{escape(value_at_mapped(idx_pressure_s3_mean))}</td>"
             f"<td>{escape(f'{s3_min:.3f}' if s3_min is not None else '')}</td>"
             f"<td>{escape(f'{s3_max:.3f}' if s3_max is not None else '')}</td>"
             f"<td>{s3_result_badge}</td>"
             "</tr>"
         )
-        html.append("</table>")
+        mean_col.append("</table>")
 
-    if s4_has_limits:
-        pressure_unit = unit_at(idx_pressure_s4_mean) or unit_at(idx_pressure_out)
-        html.append('<table class="aeff-summary">')
-        html.append("<tr><th>Pressure S4 Mean</th><th>Min</th><th>Max</th><th>Result</th></tr>")
-        html.append(
+    # --- Pressure S3 StdDev (right) ---
+    if s3_stddev_has_limit:
+        s3_stddev_unit = unit_at(idx_pressure_s3_stddev)
+        s3_stddev_max_unit = unit_at(idx_pressure_s3_stddev_max) or s3_stddev_unit
+        stddev_col.append('<table class="aeff-summary">')
+        stddev_col.append("<tr><th>Pressure S3 [StdDev]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+        stddev_col.append(
             "<tr>"
-            f"<td>{escape(pressure_unit)}</td>"
-            f"<td>{escape(unit_at(idx_pressure_out))}</td>"
-            f"<td>{escape(unit_at(idx_pressure_out))}</td>"
+            f"<td>{escape(s3_stddev_unit)}</td>"
+            "<td></td>"
+            f"<td>{escape(s3_stddev_max_unit)}</td>"
             "<td></td>"
             "</tr>"
         )
-        html.append(
+        stddev_col.append(
             "<tr>"
-            f"<td>{escape(value_at(idx_pressure_s4_mean))}</td>"
+            f"<td>{escape(value_at_mapped(idx_pressure_s3_stddev))}</td>"
+            "<td>-</td>"
+            f"<td>{escape(value_at_mapped(idx_pressure_s3_stddev_max))}</td>"
+            f"<td>{s3_stddev_result_badge}</td>"
+            "</tr>"
+        )
+        stddev_col.append("</table>")
+
+    # --- Pressure S4 Mean (left) ---
+    if s4_has_limits:
+        pressure_unit = unit_at(idx_pressure_s4_mean) or unit_at(idx_pressure_out)
+        s4_min_unit = unit_at(idx_pressure_s4_min) or unit_at(idx_pressure_out)
+        s4_max_unit = unit_at(idx_pressure_s4_max) or unit_at(idx_pressure_out)
+        mean_col.append('<table class="aeff-summary">')
+        mean_col.append("<tr><th>Pressure S4 [Mean]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+        mean_col.append(
+            "<tr>"
+            f"<td>{escape(pressure_unit)}</td>"
+            f"<td>{escape(s4_min_unit)}</td>"
+            f"<td>{escape(s4_max_unit)}</td>"
+            "<td></td>"
+            "</tr>"
+        )
+        mean_col.append(
+            "<tr>"
+            f"<td>{escape(value_at_mapped(idx_pressure_s4_mean))}</td>"
             f"<td>{escape(f'{s4_min:.3f}' if s4_min is not None else '')}</td>"
             f"<td>{escape(f'{s4_max:.3f}' if s4_max is not None else '')}</td>"
             f"<td>{s4_result_badge}</td>"
             "</tr>"
         )
-        html.append("</table>")
+        mean_col.append("</table>")
 
+    # --- Pressure S4 StdDev (right) ---
+    if s4_stddev_has_limit:
+        s4_stddev_unit = unit_at(idx_pressure_s4_stddev)
+        s4_stddev_max_unit = unit_at(idx_pressure_s4_stddev_max) or s4_stddev_unit
+        stddev_col.append('<table class="aeff-summary">')
+        stddev_col.append("<tr><th>Pressure S4 [StdDev]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+        stddev_col.append(
+            "<tr>"
+            f"<td>{escape(s4_stddev_unit)}</td>"
+            "<td></td>"
+            f"<td>{escape(s4_stddev_max_unit)}</td>"
+            "<td></td>"
+            "</tr>"
+        )
+        stddev_col.append(
+            "<tr>"
+            f"<td>{escape(value_at_mapped(idx_pressure_s4_stddev))}</td>"
+            "<td>-</td>"
+            f"<td>{escape(value_at_mapped(idx_pressure_s4_stddev_max))}</td>"
+            f"<td>{s4_stddev_result_badge}</td>"
+            "</tr>"
+        )
+        stddev_col.append("</table>")
+
+    html.append('<div class="aeff-checks">')
+    html.append('<div class="aeff-checks-col">')
+    html.extend(mean_col)
+    html.append("</div>")
+    html.append('<div class="aeff-checks-col">')
+    html.extend(stddev_col)
+    html.append("</div>")
     html.append("</div>")  # aeff-checks
     html.append("</div>")
-    return "".join(html)
+    return "".join(html), min_value, max_value, s3_min, s3_max
 
 
 def _render_uv_kv_table(rows: list[tuple[str, list[str]]]) -> str:
@@ -644,7 +1156,7 @@ def _render_uv_kv_table(rows: list[tuple[str, list[str]]]) -> str:
     for key, values in rows:
         unit = values[0] if len(values) > 0 else ""
         value = values[1] if len(values) > 1 else (values[0] if values else "")
-        html.append(f"<tr><th>{escape(key)}</th><td>{escape(unit)}</td><td>{escape(value)}</td></tr>")
+        html.append(f"<tr><th>{escape(key)}</th><td>{escape(_format_unit_display(unit))}</td><td>{escape(value)}</td></tr>")
     html.append("</table>")
     return "".join(html)
 
@@ -781,8 +1293,8 @@ def _build_leak_flow_chart(
     <polyline fill="none" stroke="#0a9367" stroke-width="2" points="{data_poly}" />
     <line x1="{margin_left}" y1="{margin_top + plot_height}" x2="{margin_left + plot_width}" y2="{margin_top + plot_height}" stroke="#5b6570" stroke-width="1.3" />
     <line x1="{margin_left}" y1="{margin_top}" x2="{margin_left}" y2="{margin_top + plot_height}" stroke="#5b6570" stroke-width="1.3" />
-    <text x="{margin_left + plot_width / 2:.2f}" y="{svg_height - 8}" class="axis-title" text-anchor="middle">Time {escape(x_unit)}</text>
-    <text x="18" y="{margin_top + plot_height / 2:.2f}" class="axis-title" text-anchor="middle" transform="rotate(-90 18 {margin_top + plot_height / 2:.2f})">Leak Flow {escape(y_unit)}</text>
+    <text x="{margin_left + plot_width / 2:.2f}" y="{svg_height - 8}" class="axis-title" text-anchor="middle">Time {escape(_format_unit_display(x_unit))}</text>
+    <text x="18" y="{margin_top + plot_height / 2:.2f}" class="axis-title" text-anchor="middle" transform="rotate(-90 18 {margin_top + plot_height / 2:.2f})">Leak Flow {escape(_format_unit_display(y_unit))}</text>
   </svg>
 </div>
 """
@@ -807,10 +1319,12 @@ def _render_leakage_limit_checks(leakage: EolSection, leakage_results: EolSectio
     mean_badge = _badge_from_value("OK" if mean_ok else "NOK")
     stddev_badge = _badge_from_value("OK" if stddev_ok else "NOK")
 
-    html = ['<div class="aeff-checks">']
-    html.append('<table class="aeff-summary">')
-    html.append("<tr><th>Leak Flow Mean</th><th>Min</th><th>Max</th><th>Result</th></tr>")
-    html.append(
+    mean_col: list[str] = []
+    stddev_col: list[str] = []
+
+    mean_col.append('<table class="aeff-summary">')
+    mean_col.append("<tr><th>Leak Flow [Mean]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+    mean_col.append(
         "<tr>"
         f"<td>{escape(mean_unit)}</td>"
         f"<td>{escape(min_unit)}</td>"
@@ -818,7 +1332,7 @@ def _render_leakage_limit_checks(leakage: EolSection, leakage_results: EolSectio
         "<td></td>"
         "</tr>"
     )
-    html.append(
+    mean_col.append(
         "<tr>"
         f"<td>{escape(mean_val)}</td>"
         f"<td>{escape(min_val)}</td>"
@@ -826,10 +1340,11 @@ def _render_leakage_limit_checks(leakage: EolSection, leakage_results: EolSectio
         f"<td>{mean_badge}</td>"
         "</tr>"
     )
-    html.append("</table>")
-    html.append('<table class="aeff-summary">')
-    html.append("<tr><th>Leak Flow StdDev</th><th>Min</th><th>Max</th><th>Result</th></tr>")
-    html.append(
+    mean_col.append("</table>")
+
+    stddev_col.append('<table class="aeff-summary">')
+    stddev_col.append("<tr><th>Leak Flow [StdDev]</th><th>Min</th><th>Max</th><th>Result</th></tr>")
+    stddev_col.append(
         "<tr>"
         f"<td>{escape(stddev_unit)}</td>"
         "<td></td>"
@@ -837,7 +1352,7 @@ def _render_leakage_limit_checks(leakage: EolSection, leakage_results: EolSectio
         "<td></td>"
         "</tr>"
     )
-    html.append(
+    stddev_col.append(
         "<tr>"
         f"<td>{escape(stddev_val)}</td>"
         "<td>-</td>"
@@ -845,7 +1360,15 @@ def _render_leakage_limit_checks(leakage: EolSection, leakage_results: EolSectio
         f"<td>{stddev_badge}</td>"
         "</tr>"
     )
-    html.append("</table>")
+    stddev_col.append("</table>")
+
+    html = ['<div class="aeff-checks">']
+    html.append('<div class="aeff-checks-col">')
+    html.extend(mean_col)
+    html.append("</div>")
+    html.append('<div class="aeff-checks-col">')
+    html.extend(stddev_col)
+    html.append("</div>")
     html.append("</div>")
     return "".join(html)
 
@@ -885,24 +1408,26 @@ def rows_to_html(sections: list[EolSection], csv_name: str) -> str:
     if conditions and conditions.kv_rows:
         cards.append(_card("Conditions", _render_kv_table(conditions.kv_rows), collapsed=True))
     if results and results.tables:
-        cards.append(_card("Results", _render_table(results.tables[0]), collapsed=True))
+        cards.append(_card("Results", _render_results_table(results.tables[0], header), collapsed=True))
 
     if not aeff_by_step:
         cards.append(_card("Measurement Time Graph", "<p><em>No step-based Aeff measurement data found.</em></p>", collapsed=False))
     else:
         for step in sorted(aeff_by_step):
-            summary = _render_step_result_row(step, result_headers, result_units, results_by_step.get(step), header)
-            chart = _build_step_chart(aeff_by_step[step], x_unit, y_unit, p3_unit)
+            summary, aeff_lmin, aeff_lmax, s3_lmin, s3_lmax = _render_step_result_row(step, result_headers, result_units, results_by_step.get(step), header)
+            chart = _build_step_chart(aeff_by_step[step], x_unit, y_unit, p3_unit, aeff_lmin, aeff_lmax, s3_lmin, s3_lmax)
             cards.append(_card(f"Measurement Time Graph - Step {step}", f'<div class="step-color">Step {step}</div>{summary}{chart}', collapsed=False))
 
     if leakage or leakage_results or leakage_measurement:
         body: list[str] = []
-        if leakage and leakage.kv_rows:
-            body.append('<p class="subsection-label">Conditions</p>')
-            body.append(_render_uv_kv_table(leakage.kv_rows))
-        if leakage_results and leakage_results.kv_rows:
-            body.append('<p class="subsection-label">Results</p>')
-            body.append(_render_uv_kv_table(leakage_results.kv_rows))
+        if (leakage and leakage.kv_rows) or (leakage_results and leakage_results.kv_rows):
+            left_html = "<p><em>No conditions data.</em></p>"
+            right_html = "<p><em>No results data.</em></p>"
+            if leakage and leakage.kv_rows:
+                left_html = '<p class="subsection-label">Conditions</p>' + _render_uv_kv_table(leakage.kv_rows)
+            if leakage_results and leakage_results.kv_rows:
+                right_html = '<p class="subsection-label">Results</p>' + _render_uv_kv_table(leakage_results.kv_rows)
+            body.append('<div class="header-split">' f"<div>{left_html}</div>" f"<div>{right_html}</div>" "</div>")
         if leakage is not None and leakage_results is not None:
             body.append(_render_leakage_limit_checks(leakage, leakage_results))
         if leakage_measurement and leakage_measurement.tables:

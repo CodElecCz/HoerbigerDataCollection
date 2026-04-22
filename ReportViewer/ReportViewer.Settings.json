@@ -1,6 +1,6 @@
 {
-  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/KISLER",
-  "converter_name": "KISTLER",
+  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/EOL/Reports",
+  "converter_name": "EOL",
   "converter_script": "built-in:converters.AVAILABLE_CONVERTERS",
   "ui_state": {
     "window": {
@@ -17,7 +17,7 @@
       "2": 100,
       "3": 100,
       "4": 100,
-      "5": 169
+      "5": 136
     },
     "column_widths_by_profile": {
       "1": {
@@ -26,7 +26,7 @@
         "2": 100,
         "3": 100,
         "4": 100,
-        "5": 169
+        "5": 124
       },
       "0": {
         "0": 100,
@@ -189,5 +189,5 @@
       "converter_name": "EOL"
     }
   ],
-  "active_profile_index": 1
+  "active_profile_index": 4
 }

@@ -104,6 +104,14 @@ th {
 }
 tr:nth-child(even) td { background: #f8fbfe; }
 
+td.check-ok {
+    background: #dff3e5 !important;
+}
+
+td.check-nok {
+    background: #f7d9dd !important;
+}
+
 table.kv th {
     width: 340px;
     background: #f0f6fb;
@@ -154,6 +162,14 @@ table.kv-sub td {
 
 .aeff-checks {
     margin-top: 10px;
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.aeff-checks-col {
+    flex: 1 1 220px;
+    min-width: 200px;
     max-width: 480px;
 }
 table.aeff-summary {

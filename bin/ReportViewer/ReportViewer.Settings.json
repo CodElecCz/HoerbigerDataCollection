@@ -1,23 +1,23 @@
 {
-  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/KISLER",
-  "converter_name": "KISTLER",
+  "kistler_folder": "D:/Work/Development/Qt/HoerbigerDataCollection/Stations/ADJ/Reports",
+  "converter_name": "ADJ",
   "converter_script": "built-in:converters.AVAILABLE_CONVERTERS",
   "ui_state": {
     "window": {
-      "width": 1574,
+      "width": 1641,
       "height": 992
     },
     "splitter_sizes": [
-      421,
-      1106
+      454,
+      1140
     ],
     "column_widths": {
-      "0": 100,
+      "0": 141,
       "1": 100,
-      "2": 100,
-      "3": 100,
+      "2": 0,
+      "3": 52,
       "4": 100,
-      "5": 124
+      "5": 100
     },
     "column_widths_by_profile": {
       "1": {
@@ -45,12 +45,12 @@
         "5": 143
       },
       "3": {
-        "0": 100,
+        "0": 141,
         "1": 100,
-        "2": 100,
-        "3": 100,
+        "2": 0,
+        "3": 52,
         "4": 100,
-        "5": 143
+        "5": 100
       },
       "4": {
         "0": 100,
@@ -64,7 +64,7 @@
     "column_visibility": {
       "0": true,
       "1": true,
-      "2": true,
+      "2": false,
       "3": true,
       "4": true,
       "5": true
@@ -97,7 +97,7 @@
       "3": {
         "0": true,
         "1": true,
-        "2": true,
+        "2": false,
         "3": true,
         "4": true,
         "5": true
@@ -189,5 +189,5 @@
       "converter_name": "EOL"
     }
   ],
-  "active_profile_index": 1
+  "active_profile_index": 3
 }
