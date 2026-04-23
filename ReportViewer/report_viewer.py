@@ -204,6 +204,26 @@ if QWebEnginePage is not None:
             super().javaScriptConsoleMessage(level, message, line_number, source_id)
 
 
+class ReportTreeWidget(QTreeWidget):
+    def __init__(self, ctrl_click_callback, parent=None) -> None:
+        super().__init__(parent)
+        self._ctrl_click_callback = ctrl_click_callback
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            item = self.itemAt(event.position().toPoint() if hasattr(event, "position") else event.pos())
+            modifiers = event.modifiers()
+            if item is not None and item.data(0, KistlerReportViewer.ROLE_PATH):
+                if modifiers & Qt.KeyboardModifier.ControlModifier:
+                    signals_blocked = self.blockSignals(True)
+                    self.setCurrentItem(item)
+                    self.blockSignals(signals_blocked)
+                    self._ctrl_click_callback(item)
+                    event.accept()
+                    return
+        super().mousePressEvent(event)
+
+
 class KistlerReportViewer(QMainWindow):
     ROLE_PATH = Qt.ItemDataRole.UserRole
     ROLE_MTIME = Qt.ItemDataRole.UserRole + 1
@@ -259,6 +279,7 @@ class KistlerReportViewer(QMainWindow):
             raise
 
         self.current_csv_path: Path | None = None
+        self._report_tab_counter = 0
         self._build_ui()
         self._restore_window_state()
         self._set_initial_directory()
@@ -308,7 +329,7 @@ class KistlerReportViewer(QMainWindow):
         filter_row.addWidget(self.filter_edit, 1)
         left_layout.addLayout(filter_row)
 
-        self.csv_tree = QTreeWidget()
+        self.csv_tree = ReportTreeWidget(self.open_selected_in_new_tab, self)
         self.csv_tree.setColumnCount(6)
         self.csv_tree.setHeaderLabels(
             [
@@ -363,16 +384,12 @@ class KistlerReportViewer(QMainWindow):
 
         splitter.addWidget(left_panel)
 
-        if self.uses_webengine:
-            self.web_view = QWebEngineView()
-            if QWebEnginePage is not None:
-                self.web_page = ReportWebPage(self.export_current_measurement_csv, self.web_view)
-                self.web_view.setPage(self.web_page)
-        else:
-            self.web_view = QTextBrowser()
-            self.web_view.setOpenExternalLinks(False)
-            self.web_view.anchorClicked.connect(self.on_textbrowser_link_clicked)
-        splitter.addWidget(self.web_view)
+        self.report_tabs = QTabWidget()
+        self.report_tabs.setTabsClosable(True)
+        self.report_tabs.tabCloseRequested.connect(self.close_report_tab)
+        self.report_tabs.currentChanged.connect(self.on_report_tab_changed)
+        self._create_report_tab("Preview")
+        splitter.addWidget(self.report_tabs)
 
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
@@ -674,7 +691,7 @@ class KistlerReportViewer(QMainWindow):
         root_text = self.dir_edit.text().strip()
         if not root_text:
             self.csv_tree.clear()
-            self.web_view.setHtml("<h3>No folder configured for this section.</h3>")
+            self._show_placeholder_message("No folder configured for this section.")
             self.statusBar().showMessage("No folder configured for selected section.", 5000)
             return
 
@@ -688,7 +705,7 @@ class KistlerReportViewer(QMainWindow):
         self.csv_tree.clear()
         if not files:
             self.statusBar().showMessage(f"No CSV files found under {root}", 6000)
-            self.web_view.setHtml("<h3>No CSV files found.</h3>")
+            self._show_placeholder_message("No CSV files found.")
             return
 
         self._populate_tree(root, files)
@@ -901,20 +918,106 @@ class KistlerReportViewer(QMainWindow):
         if first is not None:
             self.csv_tree.setCurrentItem(first)
 
-    def _find_first_visible_file(self, parent: QTreeWidgetItem) -> QTreeWidgetItem | None:
-        for i in range(parent.childCount()):
-            child = parent.child(i)
-            if child.isHidden():
-                continue
-            if child.data(0, self.ROLE_PATH):
-                return child
-            nested = self._find_first_visible_file(child)
-            if nested is not None:
-                return nested
-        return None
+    def _create_report_view(self):
+        if self.uses_webengine:
+            view = QWebEngineView()
+            if QWebEnginePage is not None:
+                page = ReportWebPage(self.export_current_measurement_csv, view)
+                view.setPage(page)
+            return view
 
-    def preview_selected(self) -> None:
+        view = QTextBrowser()
+        view.setOpenExternalLinks(False)
+        view.anchorClicked.connect(self.on_textbrowser_link_clicked)
+        return view
+
+    def _create_report_tab(self, title: str):
+        view = self._create_report_view()
+        self.report_tabs.addTab(view, title)
+        return view
+
+    def _current_report_view(self):
+        widget = self.report_tabs.currentWidget()
+        if widget is None and self.report_tabs.count() == 0:
+            widget = self._create_report_tab("Preview")
+            self.report_tabs.setCurrentWidget(widget)
+        return widget
+
+    def _set_report_csv_path(self, view, csv_path: Path | None) -> None:
+        value = str(csv_path) if csv_path is not None else ""
+        view.setProperty("csv_path", value)
+
+    def _get_report_csv_path(self, view) -> Path | None:
+        if view is None:
+            return None
+        csv_value = view.property("csv_path")
+        if not csv_value:
+            return None
+        return Path(csv_value)
+
+    def _show_placeholder_message(self, message: str, view=None) -> None:
+        target_view = view or self._current_report_view()
+        if target_view is None:
+            return
+        html = f"<h3>{message}</h3>"
+        target_view.setHtml(html)
+        self._set_report_csv_path(target_view, None)
+        self.current_csv_path = None
+
+    def _format_report_tab_title(self, csv_path: Path) -> str:
+        fields = self._parse_csv_name_fields(csv_path)
+        station = fields.get("station", "").strip()
+        serial = fields.get("serial", "").strip()
+
+        if station and serial:
+            return f"{station} {serial}"
+        if station:
+            return station
+        if serial:
+            return serial
+        return csv_path.stem
+
+    def _set_report_tab_title(self, view, csv_path: Path | None, fallback: str = "Preview") -> None:
+        index = self.report_tabs.indexOf(view)
+        if index < 0:
+            return
+        if csv_path is None:
+            self.report_tabs.setTabText(index, fallback)
+            self.report_tabs.setTabToolTip(index, "")
+            return
+        self.report_tabs.setTabText(index, self._format_report_tab_title(csv_path))
+        self.report_tabs.setTabToolTip(index, str(csv_path))
+
+    def _load_csv_into_view(self, csv_path: Path, view=None, make_current: bool = True) -> None:
+        target_view = view or self._current_report_view()
+        if target_view is None:
+            return
+
+        out_path = self._build_output_path(csv_path)
+        self.convert_file(csv_path, out_path)
+        self._set_report_csv_path(target_view, csv_path)
+        self._set_report_tab_title(target_view, csv_path)
+        if self.uses_webengine:
+            target_view.load(QUrl.fromLocalFile(str(out_path)))
+        else:
+            html_text = out_path.read_text(encoding="utf-8", errors="replace")
+            target_view.setHtml(html_text)
+        if make_current:
+            self.report_tabs.setCurrentWidget(target_view)
+        self.current_csv_path = csv_path
+
+    def _selected_csv_path(self) -> Path | None:
         item = self.csv_tree.currentItem()
+        if item is None or item.isHidden():
+            return None
+        csv_value = item.data(0, self.ROLE_PATH)
+        if not csv_value:
+            return None
+        return Path(csv_value)
+
+    def open_selected_in_new_tab(self, item: QTreeWidgetItem | None = None) -> None:
+        if item is None:
+            item = self.csv_tree.currentItem()
         if item is None or item.isHidden():
             return
 
@@ -928,14 +1031,56 @@ class KistlerReportViewer(QMainWindow):
             return
 
         try:
-            out_path = self._build_output_path(csv_path)
-            self.convert_file(csv_path, out_path)
-            self.current_csv_path = csv_path
-            if self.uses_webengine:
-                self.web_view.load(QUrl.fromLocalFile(str(out_path)))
-            else:
-                html_text = out_path.read_text(encoding="utf-8", errors="replace")
-                self.web_view.setHtml(html_text)
+            self._report_tab_counter += 1
+            view = self._create_report_tab(f"Preview {self._report_tab_counter}")
+            self._load_csv_into_view(csv_path, view=view, make_current=True)
+            self.statusBar().showMessage(f"Opened in new tab: {csv_path.name}", 4000)
+        except Exception as exc:
+            self._show_error(f"Failed to generate HTML preview for\n{csv_path}\n\n{exc}")
+
+    def close_report_tab(self, index: int) -> None:
+        widget = self.report_tabs.widget(index)
+        if widget is None:
+            return
+
+        self.report_tabs.removeTab(index)
+        widget.deleteLater()
+
+        if self.report_tabs.count() == 0:
+            view = self._create_report_tab("Preview")
+            self._show_placeholder_message("Select a CSV file to preview.", view=view)
+            self.report_tabs.setCurrentWidget(view)
+        else:
+            self.on_report_tab_changed(self.report_tabs.currentIndex())
+
+    def on_report_tab_changed(self, index: int) -> None:
+        if index < 0:
+            self.current_csv_path = None
+            return
+        self.current_csv_path = self._get_report_csv_path(self.report_tabs.widget(index))
+
+    def _find_first_visible_file(self, parent: QTreeWidgetItem) -> QTreeWidgetItem | None:
+        for i in range(parent.childCount()):
+            child = parent.child(i)
+            if child.isHidden():
+                continue
+            if child.data(0, self.ROLE_PATH):
+                return child
+            nested = self._find_first_visible_file(child)
+            if nested is not None:
+                return nested
+        return None
+
+    def preview_selected(self) -> None:
+        csv_path = self._selected_csv_path()
+        if csv_path is None:
+            return
+        if not csv_path.exists():
+            self._show_warning(f"Selected file no longer exists: {csv_path}")
+            return
+
+        try:
+            self._load_csv_into_view(csv_path)
             self.statusBar().showMessage(f"Preview loaded: {csv_path.name}", 4000)
         except Exception as exc:
             self._show_error(f"Failed to generate HTML preview for\n{csv_path}\n\n{exc}")
@@ -949,13 +1094,7 @@ class KistlerReportViewer(QMainWindow):
         return csv_path.with_suffix(".html")
 
     def save_current_page(self) -> None:
-        csv_path = self.current_csv_path
-        if csv_path is None:
-            item = self.csv_tree.currentItem()
-            if item is not None:
-                csv_value = item.data(0, self.ROLE_PATH)
-                if csv_value:
-                    csv_path = Path(csv_value)
+        csv_path = self.current_csv_path or self._selected_csv_path()
 
         if csv_path is None or not csv_path.exists():
             self._show_warning("No active CSV selected to save page.")
@@ -982,13 +1121,7 @@ class KistlerReportViewer(QMainWindow):
         QDesktopServices.openUrl(url)
 
     def export_current_measurement_csv(self, copy_only: bool = False) -> None:
-        csv_path = self.current_csv_path
-        if csv_path is None:
-            current_item = self.csv_tree.currentItem()
-            if current_item is not None:
-                csv_value = current_item.data(0, self.ROLE_PATH)
-                if csv_value:
-                    csv_path = Path(csv_value)
+        csv_path = self.current_csv_path or self._selected_csv_path()
 
         if csv_path is None or not csv_path.exists():
             self._show_warning("No active CSV selected for export.")
