@@ -21,6 +21,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from converters import AVAILABLE_CONVERTERS, DEFAULT_CONVERTER_NAME
+from csv_to_html.eol_stat import convert_files as convert_eol_stats
 
 BUILT_IN_CONVERTER_SETTING = "built-in:converters.AVAILABLE_CONVERTERS"
 PROFILE_COUNT = 5
@@ -342,7 +343,7 @@ class KistlerReportViewer(QMainWindow):
             ]
         )
         self.csv_tree.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.csv_tree.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.csv_tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.csv_tree.setAllColumnsShowFocus(True)
         self.csv_tree.setAlternatingRowColors(True)
         self.csv_tree.setStyleSheet(
@@ -962,6 +963,8 @@ class KistlerReportViewer(QMainWindow):
         html = f"<h3>{message}</h3>"
         target_view.setHtml(html)
         self._set_report_csv_path(target_view, None)
+        target_view.setProperty("is_statistics", False)
+        target_view.setProperty("statistics_csv_paths", None)
         self.current_csv_path = None
 
     def _format_report_tab_title(self, csv_path: Path) -> str:
@@ -996,6 +999,8 @@ class KistlerReportViewer(QMainWindow):
         out_path = self._build_output_path(csv_path)
         self.convert_file(csv_path, out_path)
         self._set_report_csv_path(target_view, csv_path)
+        target_view.setProperty("is_statistics", False)
+        target_view.setProperty("statistics_csv_paths", None)
         self._set_report_tab_title(target_view, csv_path)
         if self.uses_webengine:
             target_view.load(QUrl.fromLocalFile(str(out_path)))
@@ -1071,10 +1076,83 @@ class KistlerReportViewer(QMainWindow):
                 return nested
         return None
 
-    def preview_selected(self) -> None:
-        csv_path = self._selected_csv_path()
-        if csv_path is None:
+    def _build_output_path(self, csv_path: Path) -> Path:
+        digest = hashlib.sha1(str(csv_path).encode("utf-8")).hexdigest()[:10]
+        filename = f"{csv_path.stem}_{digest}.html"
+        return self.generated_dir / filename
+
+    def _build_saved_page_path(self, csv_path: Path) -> Path:
+        return csv_path.with_suffix(".html")
+
+    def _build_statistics_saved_page_path(self, csv_path: Path) -> Path:
+        parts = csv_path.stem.split("_")
+        if len(parts) == 5:
+            station, date_text, time_text, _serial, _result = parts
+            filename = f"{station}_{date_text}_{time_text}_STAT.html"
+            return csv_path.parent / filename
+        return csv_path.parent / f"{csv_path.stem}_STAT.html"
+
+    def _build_multi_output_path(self, csv_paths: list[Path], prefix: str) -> Path:
+        digest_source = "|".join(str(path) for path in csv_paths)
+        digest = hashlib.sha1(digest_source.encode("utf-8")).hexdigest()[:10]
+        filename = f"{prefix}_{digest}.html"
+        return self.generated_dir / filename
+
+    def _selected_csv_paths(self) -> list[Path]:
+        csv_paths: list[Path] = []
+        seen: set[str] = set()
+        for item in self.csv_tree.selectedItems():
+            csv_value = item.data(0, self.ROLE_PATH)
+            if not csv_value:
+                continue
+            csv_text = str(csv_value)
+            if csv_text in seen:
+                continue
+            seen.add(csv_text)
+            csv_paths.append(Path(csv_text))
+        return csv_paths
+
+    def _load_selected_statistics_into_view(self, csv_paths: list[Path], view=None) -> None:
+        if self.converter_name != "EOL":
+            raise ValueError("Statistics preview is currently available only for EOL reports")
+
+        target_view = view or self._current_report_view()
+        if target_view is None:
             return
+
+        output_path = self._build_multi_output_path(csv_paths, "eol_stats")
+        convert_eol_stats(csv_paths, output_path)
+        self._set_report_csv_path(target_view, None)
+        target_view.setProperty("is_statistics", True)
+        target_view.setProperty("statistics_csv_paths", [str(path) for path in csv_paths])
+        station_name = self._parse_csv_name_fields(csv_paths[0]).get("station", "").strip() or "EOL"
+        self._set_report_tab_title(target_view, None, fallback=f"{station_name} Statistic")
+        if self.uses_webengine:
+            target_view.load(QUrl.fromLocalFile(str(output_path)))
+        else:
+            html_text = output_path.read_text(encoding="utf-8", errors="replace")
+            target_view.setHtml(html_text)
+        self.current_csv_path = None
+
+    def preview_selected(self) -> None:
+        csv_paths = self._selected_csv_paths()
+        if not csv_paths:
+            return
+
+        if len(csv_paths) > 1:
+            missing_paths = [path for path in csv_paths if not path.exists()]
+            if missing_paths:
+                self._show_warning(f"Selected file no longer exists: {missing_paths[0]}")
+                return
+
+            try:
+                self._load_selected_statistics_into_view(csv_paths)
+                self.statusBar().showMessage(f"Loaded statistics for {len(csv_paths)} reports", 4000)
+            except Exception as exc:
+                self._show_error(f"Failed to generate statistics preview\n\n{exc}")
+            return
+
+        csv_path = csv_paths[0]
         if not csv_path.exists():
             self._show_warning(f"Selected file no longer exists: {csv_path}")
             return
@@ -1085,31 +1163,50 @@ class KistlerReportViewer(QMainWindow):
         except Exception as exc:
             self._show_error(f"Failed to generate HTML preview for\n{csv_path}\n\n{exc}")
 
-    def _build_output_path(self, csv_path: Path) -> Path:
-        digest = hashlib.sha1(str(csv_path).encode("utf-8")).hexdigest()[:10]
-        filename = f"{csv_path.stem}_{digest}.html"
-        return self.generated_dir / filename
-
-    def _build_saved_page_path(self, csv_path: Path) -> Path:
-        return csv_path.with_suffix(".html")
-
     def save_current_page(self) -> None:
+        active_view = self._current_report_view()
+        is_statistics_tab = bool(active_view and active_view.property("is_statistics"))
+        statistics_csv_paths: list[Path] = []
+        if is_statistics_tab and active_view is not None:
+            raw_paths = active_view.property("statistics_csv_paths") or []
+            if isinstance(raw_paths, list):
+                statistics_csv_paths = [Path(path) for path in raw_paths if isinstance(path, str)]
+
+        if is_statistics_tab:
+            selected_csv_paths = [path for path in statistics_csv_paths if path.exists()]
+            if len(selected_csv_paths) <= 1:
+                selected_csv_paths = [path for path in self._selected_csv_paths() if path.exists()]
+            if self.converter_name == "EOL" and len(selected_csv_paths) > 1:
+                newest_csv = max(selected_csv_paths, key=lambda path: path.stat().st_mtime)
+                out_path = self._build_statistics_saved_page_path(newest_csv)
+                print(f"[SavePage] started: statistics files={len(selected_csv_paths)} newest={newest_csv}")
+                try:
+                    convert_eol_stats(selected_csv_paths, out_path)
+                    print(f"[SavePage] saved statistics: {out_path}")
+                    self.statusBar().showMessage(f"Statistics saved: {out_path.name}", 5000)
+                except Exception as exc:
+                    print(f"[SavePage] failed: statistics error={exc}")
+                    self._show_error(f"Failed to save statistics page\n\n{exc}")
+                return
+
         csv_path = self.current_csv_path or self._selected_csv_path()
+
+        if csv_path is not None and csv_path.exists():
+            out_path = self._build_saved_page_path(csv_path)
+            print(f"[SavePage] started: csv={csv_path}")
+            try:
+                self.convert_file(csv_path, out_path)
+                print(f"[SavePage] saved: {out_path}")
+                self.statusBar().showMessage(f"Page saved: {out_path.name}", 5000)
+            except Exception as exc:
+                print(f"[SavePage] failed: csv={csv_path} error={exc}")
+                self._show_error(f"Failed to save page for\n{csv_path}\n\n{exc}")
+            return
 
         if csv_path is None or not csv_path.exists():
             self._show_warning("No active CSV selected to save page.")
             print("[SavePage] failed: no active CSV selected")
             return
-
-        out_path = self._build_saved_page_path(csv_path)
-        print(f"[SavePage] started: csv={csv_path}")
-        try:
-            self.convert_file(csv_path, out_path)
-            print(f"[SavePage] saved: {out_path}")
-            self.statusBar().showMessage(f"Page saved: {out_path.name}", 5000)
-        except Exception as exc:
-            print(f"[SavePage] failed: csv={csv_path} error={exc}")
-            self._show_error(f"Failed to save page for\n{csv_path}\n\n{exc}")
 
     def on_textbrowser_link_clicked(self, url) -> None:
         if is_export_measurement_url(url.toString()):
